@@ -10,8 +10,6 @@ class Pretty a where
 
 instance Pretty Expr where
 	pretty (Var v) = text v
-	pretty (InfixApp "(:)" e e') = parens $ pretty e <+> text ":" <+> pretty e'
-	pretty (InfixApp q e e') = pretty e <+> text q <+> pretty e'
 	pretty (Con "Nil" _) = text "[]"
 	pretty (Con "Cons" es)
 	 | null es = text "[]"
@@ -19,6 +17,12 @@ instance Pretty Expr where
 	pretty (Con c es) = text c <+> hcat (punctuate space $ map pretty es)
 	pretty (Lit l) = pretty l
 	pretty (Func f) = text f
+	pretty (App Not Not) = text ""
+	pretty (App Not e) = pretty e
+	pretty (App e Not) = pretty e
+	pretty (App e@(Var v) e'''@(App e' e''))
+	 | v `elem` ["$", ">>=", "=<<"] = pretty e' <+> text v <+> pretty e''
+	 | otherwise = pretty e <+> pretty e'''
 	pretty (App e@(Lambda {}) e') = parens (pretty e) <+> pretty e'
 	pretty (App e e') = pretty e <+> pretty e'
 	pretty (Case e b) = hang (text "case" <+> pretty e <+> text "of") 1 $ vcat $ map (\(p, e) -> pretty p <+> text "->" <+> pretty e) b
@@ -27,6 +31,7 @@ instance Pretty Expr where
 	pretty (Paren e@(Paren {})) = pretty e
 	pretty (Paren e@(Con {})) = pretty e
 	pretty (Paren e) = parens $ pretty e
+	pretty (Not) = text ""
 
 instance Pretty Lit where
 	pretty (Char c) = text $ "'" ++ [c] ++ "'"

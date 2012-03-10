@@ -2,6 +2,8 @@ module Core.Expr where
 
 data Prog = Prog Expr [Function]    -- Program (body of main, with environment functions)
 
+type Program = [Function]
+
 instance Eq Prog where
     (Prog m fs) == (Prog m' fs') = m == m' && fs == fs'
 
@@ -16,6 +18,7 @@ data Expr = Var String                -- Variable
           | Let (String, Expr) Expr   -- Let Expression
           | Paren Expr                -- Parenthesized Expression
           | Lit Lit                   -- Literal Expression
+		  | Not
 
 instance Eq Expr where
     (Var v)         == (Var v')         = v == v'

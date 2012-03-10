@@ -6,7 +6,6 @@ module Core(
     Pattern,
     Function,
     Branch,
-    parseFile
 ) where
 
 import Core.Expr
