@@ -1,8 +1,5 @@
 module Core(
-	Pretty,
-    Prog,
     Expr,
-    Lit,
     Pattern,
     Function,
     Branch,
