@@ -2,8 +2,18 @@ module Core.Parser where
 
 import Core.Expr
 import qualified Language.Haskell.Syntax as L
+import qualified Language.Haskell.Parser as P
 
-parseModule (L.HsModule _ _ _ _ decls) = parseHsDecls decls
+parseFile f = do
+    contents <- readFile f
+    let
+        m = P.parseModule contents
+    case m of
+        (P.ParseOk n) -> return $ parseHsModule n
+        _ -> error "Problem"
+        
+
+parseHsModule (L.HsModule _ _ _ _ decls) = parseHsDecls decls
 
 parseHsDecls decls = map parseHsDecl $ filterDecls decls
 
@@ -23,7 +33,7 @@ parseHsDecl (L.HsFunBind [L.HsMatch _ name pats e []]) =
         args = map (\(L.HsPVar v) -> parseHsName v) pats
         fName = parseHsName name
         fBody = parseHsRhs e
-        fExpr = foldr (\v e -> Lambda v e) lBody args
+        fExpr = foldr (\v e -> Lambda v (abstract 0 v e)) fBody args
     in (fName, fExpr)
 parseHsDecl d = error $ show d
     
@@ -69,8 +79,6 @@ parseHsExp (L.HsParen e) = parseHsExp e
 parseHsExp (L.HsExpTypeSig _ e t) = Typed (parseHsExp e) t
 parseHsExp e = error $ show e
 
-parseLit (L.HsInt i) = nat2con i
-parseLit (L.HsIntPrim i) = nat2con i
 parseLit l = Lit l
 
 parseCaseAlts = map parseCaseAlt
