@@ -1,5 +1,3 @@
-{-# LANGUAGE NPlusKPatterns #-}
-
 module Transform where
 
 import Core.Expr
@@ -43,13 +41,13 @@ transform 0 (Func f) k r s fv d = let e = place (Func f) k
                                                                                                                      in  transform 0 (extract s' t'') EmptyCtx r s fv d
                                                                                                                 else throw (t,t')
                                                                                in  handle t handler
-transform (n+1) (Func f) k r s fv d = do
-                                     e <- transform n (Func f) k [] s fv d
+transform n (Func f) k r s fv d = do
+                                     e <- transform (n-1) (Func f) k [] s fv d
                                      case (find (\e' -> isJust (inst e' e [])) r) of
                                         Just e' -> let (Just s') = inst e' e []
                                                    in  if   isRenaming s'
                                                        then return (Fold f e)
-                                                       else transform (n+1) (extract s' e') EmptyCtx r s fv d
+                                                       else transform n (extract s' e') EmptyCtx r s fv d
                                         Nothing -> case (find (\e' -> isJust (couple e' e [])) r) of
                                                       Just e' -> throw (e',e)
                                                       Nothing -> case (lookup f d) of
@@ -68,11 +66,11 @@ transform n (Let x e e') k r s fv d = case (find (\ (x',t) -> e==t) s) of
                                                      in do t <- transform n e EmptyCtx r s fv d
                                                            t' <- transform n (subst 0 (Var x') e') k r ((x',e):s) (x':fv) d
                                                            return (Let x t (abstract 0 x' t')) 
-transform (n+1) (Unfold f t u) k r s fv d = case (find (\t' -> isJust (inst t' t [])) r) of
+transform n (Unfold f t u) k r s fv d = case (find (\t' -> isJust (inst t' t [])) r) of
                                                Just t' -> let (Just s') = inst t' t []
                                                           in  if   isRenaming s'
                                                               then return (Fold f t)
-                                                              else transform (n+1) (extract s' t') EmptyCtx r s fv d
+                                                              else transform n (extract s' t') EmptyCtx r s fv d
                                                Nothing -> case (find (\t' -> isJust (couple t' t [])) r) of
                                                              Just t' -> throw (t',t)
                                                              Nothing -> case (lookup f d) of
@@ -84,7 +82,7 @@ transform (n+1) (Unfold f t u) k r s fv d = case (find (\t' -> isJust (inst t' t
                                                                                                                            in  transform 0 (extract s' e'') EmptyCtx r s fv d
                                                                                                                       else throw (e,e')
                                                                                      in  handle e' handler
-transform (n + 1) (Typed e t) k r s fv d = do
+transform n (Typed e t) k r s fv d = do
     e' <- transform n e k r s fv d
     return (Typed e' t)
 
