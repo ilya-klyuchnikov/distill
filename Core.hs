@@ -1,8 +1,5 @@
 module Core(
-    Expr,
-    Pattern,
-    Function,
-    Branch,
+    Expr
 ) where
 
 import Core.Expr

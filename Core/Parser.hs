@@ -5,23 +5,27 @@ import qualified Language.Haskell.Syntax as L
 
 parseModule (L.HsModule _ _ _ _ decls) = parseHsDecls decls
 
-parseHsDecls decls = map parseHsDecl decls
+parseHsDecls decls = map parseHsDecl $ filterDecls decls
 
-parseHsDecl (L.HsPatBind _ (L.HsPVar name) e decls) =
+filterDecls = filter isFuncDecl
+
+isFuncDecl (L.HsPatBind {}) = True
+isFuncDecl (L.HsFunBind {}) = True
+isFuncDecl _ = False
+
+parseHsDecl (L.HsPatBind _ (L.HsPVar name) e []) =
     let
         fName = parseHsName name
         fBody = parseHsRhs e
-        fWheres = parseHsDecls decls
-    in (fName, LetRec fWheres fBody)
-parseHsDecl (L.HsFunBind [L.HsMatch _ name pats e decls]) =
+    in (fName, fBody)
+parseHsDecl (L.HsFunBind [L.HsMatch _ name pats e []]) =
     let
         args = map (\(L.HsPVar v) -> parseHsName v) pats
         fName = parseHsName name
         fBody = parseHsRhs e
-        fWheres = parseHsDecls decls
-        lExpr = LetRec fWheres fBody
-        fExpr = foldl (\e v -> Lambda v e) lExpr args
-    in (fName, LetRec fWheres fExpr)
+        fExpr = foldr (\v e -> Lambda v e) lBody args
+    in (fName, fExpr)
+parseHsDecl d = error $ show d
     
 parseHsRhs (L.HsUnGuardedRhs e) = parseHsExp e
 parseHsRhs (L.HsGuardedRhss es) =
@@ -41,37 +45,42 @@ parseHsName (L.HsSymbol s) = s
 
 parseHsExp (L.HsVar v) = Var $ parseHsQName v
 parseHsExp (L.HsCon c) = Con (parseHsQName c) []
-parseHsExp (L.HsLit l) = Lit l
-parseHsExp (L.HsInfixApp e q e') = Con (parseHsQOp q) [parseHsExp e, parseHsExp e']
+parseHsExp (L.HsLit l) = parseLit l
+parseHsExp (L.HsInfixApp e q e') = InfixApp (parseHsExp e) (parseHsQOp q) (parseHsExp e')
 parseHsExp a@(L.HsApp e e')
- | isConApp a = buildConstructor a
+ | isConApp a = Con (getConsName a) (getConsArgs a)
  | otherwise = App (parseHsExp e) (parseHsExp e')
 parseHsExp (L.HsNegApp e) = App (Var "negate") (parseHsExp e)
 parseHsExp (L.HsLambda _ vs e) =
     let
         e' = parseHsExp e
         vs' = map (\(L.HsPVar v) -> parseHsName v) vs
-    in foldl (\e v -> Lambda v e) e' vs'
+    in foldr (\v e -> Lambda v (abstract 0 v e)) e' vs'
 parseHsExp (L.HsLet decls e) =
     let
         fLets = parseHsDecls decls
         fExpr = parseHsExp e
-    in foldl (\e (f', e') -> App (Lambda f' e) e') fExpr fLets
+    in foldl (\e (f', e') -> App (Lambda f' (abstract 0 f' e)) e') fExpr fLets
 parseHsExp (L.HsIf c t e) = Case (parseHsExp c) [(Pattern "True" [], parseHsExp t), (Pattern "False" [], parseHsExp e)]
 parseHsExp (L.HsCase e alts) = Case (parseHsExp e) (parseCaseAlts alts)
 parseHsExp (L.HsTuple es) = Con "Tuple" (map parseHsExp es)
-parseHsExp (L.HsList es) = Con "List" (map parseHsExp es)
+parseHsExp (L.HsList es) = list2con $ map parseHsExp es
 parseHsExp (L.HsParen e) = parseHsExp e
+parseHsExp (L.HsExpTypeSig _ e t) = Typed (parseHsExp e) t
 parseHsExp e = error $ show e
+
+parseLit (L.HsInt i) = nat2con i
+parseLit (L.HsIntPrim i) = nat2con i
+parseLit l = Lit l
 
 parseCaseAlts = map parseCaseAlt
 
 parseCaseAlt (L.HsAlt _ pat alt decls) =
     let
-        p' = parseCasePat pat
-        e' = parseHsGuardedAlts alt
+        p'@(Pattern c es) = parseCasePat pat
+        e' = foldl (\e v -> abstract 0 v e) (parseHsGuardedAlts alt) (c:es)
         l' = parseHsDecls decls
-    in (p', foldl (\e (f', e') -> App (Lambda f' e) e') e' l')
+    in (p', foldl (\e (f', e') -> App (Lambda f' (abstract 0 f' e)) e') e' l')
 
 parseHsGuardedAlts (L.HsUnGuardedAlt e) = parseHsExp e
 parseHsGuardedAlts (L.HsGuardedAlts es) = parseGuardedAlts es
@@ -81,8 +90,8 @@ parseGuardedAlts ((L.HsGuardedAlt _ e e'):as) = Case (parseHsExp e) [(Pattern "T
 
 parseCasePat (L.HsPApp c es) = Pattern (parseHsQName c) (map (\(L.HsPVar v) -> parseHsName v) es)
 parseCasePat (L.HsPParen p) = parseCasePat p
-
-buildConstructor e = Con (getConsName e) (getConsArgs e)
+parseCasePat (L.HsPInfixApp (L.HsPVar e) c (L.HsPVar e')) = Pattern (parseHsQName c) [parseHsName e, parseHsName e']
+parseCasePat (L.HsPList []) = Pattern "[]" []
 
 isConApp (L.HsApp (L.HsCon _) _) = True
 isConApp (L.HsApp e _) = isConApp e
