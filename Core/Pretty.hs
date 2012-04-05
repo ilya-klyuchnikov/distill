@@ -11,6 +11,7 @@ class Pretty a where
 
 instance Pretty Expr where
     pretty (Var v) = text v
+    pretty (Bound i) = int i
     pretty (Con "List" []) = text "[]"
     pretty (Con "List" es)
      | null es = text "[]"
@@ -28,12 +29,12 @@ instance Pretty Expr where
      | v `elem` ["$", ">>=", "=<<"] = pretty e' <+> text v <+> pretty e''
      | otherwise = pretty e <+> pretty e'''
     pretty (App e@(Lambda {}) e') = parens (pretty e) <+> pretty e'
-    pretty (App e e') = parens $ pretty e <+> (parens $ pretty e')
+    pretty (App e e') = parens (pretty e <+> parens (pretty e'))
     pretty (InfixApp e "(:)" e') = parens $ pretty e <> text ":" <> pretty e'
     pretty (InfixApp e c e') = parens $ pretty e <> text c <> pretty e'
     pretty (Case e b) = hang (text "case" <+> pretty e <+> text "of") 1 $ vcat $ map (\(p, e) -> pretty p <+> text "->" <+> pretty e) b
     pretty (Lambda v e) = text "\\" <> text v <+> text "->" <+> pretty e
-    pretty (Typed e t) = parens $ (parens $ pretty e) <+> text "::" <> (text $ prettyPrint t)
+    pretty (Typed e t) = parens (parens (pretty e) <+> text "::" <> text (prettyPrint t))
 
 instance Pretty Pattern where
     pretty (Pattern "(:)" es) = parens $ hcat $ punctuate colon $ map text es
