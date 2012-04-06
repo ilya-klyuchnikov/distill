@@ -55,7 +55,7 @@ parseHsName (L.HsSymbol s) = s
 
 parseHsExp (L.HsVar v) = Var $ parseHsQName v
 parseHsExp (L.HsCon c) = Con (parseHsQName c) []
-parseHsExp (L.HsLit l) = parseLit l
+parseHsExp (L.HsLit l) = Lit l
 parseHsExp (L.HsInfixApp e q e') = InfixApp (parseHsExp e) (parseHsQOp q) (parseHsExp e')
 parseHsExp a@(L.HsApp e e')
  | isConApp a = Con (getConsName a) (getConsArgs a)
@@ -79,22 +79,20 @@ parseHsExp (L.HsParen e) = parseHsExp e
 parseHsExp (L.HsExpTypeSig _ e t) = Typed (parseHsExp e) t
 parseHsExp e = error $ show e
 
-parseLit l = Lit l
-
 parseCaseAlts = map parseCaseAlt
 
 parseCaseAlt (L.HsAlt _ pat alt decls) =
     let
         p'@(Pattern c es) = parseCasePat pat
-        e' = foldl (\e v -> abstract 0 v e) (parseHsGuardedAlts alt) (c:es)
+        e' = foldl (\e v -> flip (abstract 0)) (parseHsGuardedAlts alt) (c:es)
         l' = parseHsDecls decls
     in (p', foldl (\e (f', e') -> App (Lambda f' (abstract 0 f' e)) e') e' l')
 
 parseHsGuardedAlts (L.HsUnGuardedAlt e) = parseHsExp e
 parseHsGuardedAlts (L.HsGuardedAlts es) = parseGuardedAlts es
 
-parseGuardedAlts ((L.HsGuardedAlt _ e e'):[]) = Case (parseHsExp e) [(Pattern "True" [], parseHsExp e')]
-parseGuardedAlts ((L.HsGuardedAlt _ e e'):as) = Case (parseHsExp e) [(Pattern "True" [], parseHsExp e'), (Pattern "False" [], parseGuardedAlts as)]
+parseGuardedAlts (L.HsGuardedAlt _ e e':[]) = Case (parseHsExp e) [(Pattern "True" [], parseHsExp e')]
+parseGuardedAlts (L.HsGuardedAlt _ e e':as) = Case (parseHsExp e) [(Pattern "True" [], parseHsExp e'), (Pattern "False" [], parseGuardedAlts as)]
 
 parseCasePat (L.HsPApp c es) = Pattern (parseHsQName c) (map (\(L.HsPVar v) -> parseHsName v) es)
 parseCasePat (L.HsPParen p) = parseCasePat p
@@ -109,7 +107,7 @@ getConsName (L.HsApp (L.HsCon c) _) = parseHsQName c
 getConsName (L.HsApp e _) = getConsName e
 
 getConsArgs (L.HsApp (L.HsCon _) e) = [parseHsExp e]
-getConsArgs (L.HsApp e e') = (getConsArgs e) ++ [parseHsExp e']
+getConsArgs (L.HsApp e e') = getConsArgs e ++ [parseHsExp e']
 
 parseHsQName (L.Qual (L.Module m) n) = m ++ "." ++ parseHsName n
 parseHsQName (L.UnQual n) = parseHsName n
@@ -119,7 +117,7 @@ parseHsSpecialCon (L.HsUnitCon) = "()"
 parseHsSpecialCon (L.HsListCon) = "[]"
 parseHsSpecialCon (L.HsFunCon) = "->"
 parseHsSpecialCon (L.HsCons) = "(:)"
-parseHsSpecialCon _ = error $ "Unhandled special con"
+parseHsSpecialCon _ = error "Unhandled special con"
 
 parseHsQOp (L.HsQVarOp v) = parseHsQName v
 parseHsQOp (L.HsQConOp c) = parseHsQName c
