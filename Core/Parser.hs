@@ -3,13 +3,25 @@ module Core.Parser where
 import Core.Expr
 import qualified Language.Haskell.Syntax as L
 import qualified Language.Haskell.Parser as P
+import Data.List (delete)
+import Data.Foldable (find)
+import Debug.Trace
+import Core.Pretty
 
 parseFile f = do
     contents <- readFile f
     let
         m = P.parseModule contents
     case m of
-        (P.ParseOk n) -> return $ parseHsModule n
+        (P.ParseOk n) ->
+            let 
+                !funcs = parseHsModule n
+                !(funcNames, funcBodies) = unzip $ parseHsModule n
+                !fixedFuncs = map (fixFuncs funcNames) funcBodies
+                !funcs' = zip funcNames fixedFuncs
+            in case find (\(f, e) -> f == "main") funcs' of
+                Just (f, e) -> return $ Program e (delete (f, e) funcs)
+                _ -> error "No main function found"
         _ -> error "Problem"
         
 
@@ -22,6 +34,18 @@ filterDecls = filter isFuncDecl
 isFuncDecl (L.HsPatBind {}) = True
 isFuncDecl (L.HsFunBind {}) = True
 isFuncDecl _ = False
+
+fixFuncs names e@(Var v)
+ | v == "app" = error "herehere"
+ | v `elem` names = Func v
+ | otherwise = e
+fixFuncs names (Con s es) = Con s $ map (fixFuncs names) es
+fixFuncs names (Lambda v e) = Lambda v $ fixFuncs names e
+fixFuncs names (App e e') = App (fixFuncs names e) (fixFuncs names e')
+fixFuncs names (InfixApp e c e') = InfixApp (fixFuncs names e) c (fixFuncs names e')
+fixFuncs names (Case e bs) = Case (fixFuncs names e) (map (\(p, e) -> (p, fixFuncs names e)) bs)
+fixFuncs names (Typed e t) = Typed (fixFuncs names e) t
+fixFuncs names e = trace (show e) e
 
 parseHsDecl (L.HsPatBind _ (L.HsPVar name) e []) =
     let
@@ -84,7 +108,7 @@ parseCaseAlts = map parseCaseAlt
 parseCaseAlt (L.HsAlt _ pat alt decls) =
     let
         p'@(Pattern c es) = parseCasePat pat
-        e' = foldl (\e v -> flip (abstract 0)) (parseHsGuardedAlts alt) (c:es)
+        e' = foldl (\e v -> abstract 0 v e) (parseHsGuardedAlts alt) (c:es)
         l' = parseHsDecls decls
     in (p', foldl (\e (f', e') -> App (Lambda f' (abstract 0 f' e)) e') e' l')
 

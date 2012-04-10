@@ -9,6 +9,9 @@ class Pretty a where
     prettyShow :: a -> String
     prettyShow = render . pretty
 
+instance Pretty Program where
+    pretty (Program main funcs) = vcat $ punctuate (text "\n\n") $ map prettyFunction (("main", main):funcs)
+
 instance Pretty Expr where
     pretty (Var v) = text v
     pretty (Bound i) = int i
@@ -48,7 +51,9 @@ instance Show Expr where
 
 instance Show Pattern where
     show = prettyShow
-
+    
+instance Show Program where
+    show = prettyShow
 
 prettyFunction :: (String, Expr) -> Doc
 prettyFunction (name, body) = text name <+> text "=" <+> pretty body

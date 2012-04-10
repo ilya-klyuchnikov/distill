@@ -238,6 +238,7 @@ residualise (Typed e t) fv r d =
     let
         (e', d') = residualise e fv r d
     in (Typed e' t, d')
+residualise e@(Lit l) _ _ d = (e, d)
 
 match bs bs' = (length bs == length bs') && all (\((Pattern c xs,t),(Pattern c' xs',t')) -> c == c' && length xs == length xs') (zip bs bs')
 
@@ -257,6 +258,7 @@ free' xs (Let _ t u) = free' (free' xs t) u
 free' xs (Unfold f t u) = free' xs u
 free' xs (Fold f t) = xs
 free' xs (Typed e _) = free' xs e
+free' xs _ = xs
 
 bound = bound' 0 []
 
@@ -288,6 +290,7 @@ funs fs (Let x t u) = funs (funs fs t) u
 funs fs (Unfold f t u) = fs
 funs fs (Fold f t) = fs
 funs fs (Typed e _) = funs fs e
+funs fs (Lit _) = fs
 
 unfold fs (Var x) = Var x
 unfold fs (Bound i) = Bound i
@@ -320,6 +323,7 @@ shift i d (Let x t u) = Let x (shift i d t) (shift i (d+1) u)
 shift i d (Unfold f t u) = Unfold f (shift i d t) (shift i d u)
 shift i d (Fold f t) = Fold f (shift i d t)
 shift i d (Typed e t) = Typed (shift i d e) t
+shift _ _ e@(Lit _) = e
 
 subst i t (Var x) = Var x
 subst i t (Bound i') 
@@ -336,6 +340,7 @@ subst i t (Let x t' u) = Let x (subst i t t') (subst (i+1) t u)
 subst i t (Unfold f t' u) = Unfold f (subst i t t') (subst i t u)
 subst i t (Fold f t') = Fold f (subst i t t')
 subst i t (Typed e t') = Typed (subst i t e) t'
+subst _ _ e@(Lit _) = e
 
 abstract i b e@(Var x)
  | x == b = Bound i
@@ -353,6 +358,7 @@ abstract i b (Let x t u) = Let x (abstract i b t) (abstract (i+1) b u)
 abstract i b (Unfold f t u) = Unfold f (abstract i b t) (abstract i b u)
 abstract i b (Fold f t) = Fold f (abstract i b t)
 abstract i b (Typed e t) = Typed (abstract i b e) t
+abstract i b e = e
 
 rename s e@(Var x) = case lookup x s of
     Just x'  -> Var x'

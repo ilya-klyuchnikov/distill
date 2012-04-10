@@ -5,6 +5,7 @@ import Context
 import Exception
 import Data.List (find)
 import Data.Maybe (isJust)
+import Debug.Trace
 
 transform n e@(Var _) k r s fv d = transformCtx n e k r s fv d
 transform _ (Bound _) _ _ _ _ _ = error "Unexpected bound variable"
@@ -25,8 +26,13 @@ transform n e@(Con c es) (CaseCtx k bs) r s fv d =
         Just (_, e) -> transform n (foldr (subst 0) e es) k r s fv d
         _ -> error ("No matching pattern in case for term:\n\n"++show (Case e bs))
 transform n (App e e') k r s fv d = transform n e (AppCtx k e') r s fv d
-transform n (InfixApp e c e') k r s fv d = transform n e (InfixAppCtx k c e') r s fv d
-transform 0 (Func f) k r s fv d = 
+transform n (InfixApp e c f) EmptyCtx r s fv d = do
+    e' <- transform n e EmptyCtx r s fv d
+    f' <- transform n f EmptyCtx r s fv d
+    return (InfixApp e' c f')
+transform n (InfixApp e c e') (AppCtx{}) _ _ _ _ = error ("InfixApp not saturated: " ++ show e)
+transform n (InfixApp {}) _ _ _ _ _ = error "here"
+transform 0 (Func f) k r s fv d = trace f $
     let e = place (Func f) k
     in case find (\e' -> isJust (inst e' e [])) r of
         Just e' -> 
@@ -67,7 +73,7 @@ transform n (Func f) k r s fv d = do
                                 | e == t = (\(t'', s') -> transform 0 (extract s' t'') EmptyCtx r s fv d) $ generalise t t' [] fv []
                                 | otherwise = throw (t,t')
                     _ -> error ("Undefined function: "++f)
-transform n (Case e bs) k r s fv d = transform n e (CaseCtx k bs) r s fv d
+transform n e'@(Case e bs) k r s fv d = transform n e (CaseCtx k bs) r s fv d -- error $ show e' ++ show k --
 transform n (Let x e e') k r s fv d = 
     case find (\s -> e == snd s) s of
       Just s' -> transform n (subst 0 (Var (fst s')) e') k r s fv d
@@ -98,9 +104,11 @@ transform n (Unfold f t u) k r s fv d =
                                    | otherwise = throw (e, e')
                         _ -> error ("Undefined function: "++f)
 transform n (Typed e t) k r s fv d = transform n e k r s fv d >>= \e' -> return (Typed e' t)
+--transform n e@(Lit _) k r s fv d = return e
 
 transformCtx n e EmptyCtx r s fv d = return e
 transformCtx n e (AppCtx k e') r s fv d = transform n e' EmptyCtx r s fv d >>= \e'' -> transformCtx n (App e e'') k r s fv d
+transformCtx n e (InfixAppCtx k c e') r s fv d = transform n e' EmptyCtx r s fv d >>= \e'' -> transformCtx n (InfixApp e c e'') k r s fv d
 transformCtx n e (CaseCtx k bs) r s fv d = do 
     bs' <- mapM (\(Pattern c xs,e') -> 
                     let 
@@ -109,7 +117,7 @@ transformCtx n e (CaseCtx k bs) r s fv d = do
                         xs' = take (length xs) fv'
                         t = foldr (\x e -> subst 0 (Var x) e) (replace e (Con c (map Var xs')) e'') xs'
                     in do 
-                        t' <- transform n t EmptyCtx r s fv' d
-                        return (Pattern c xs,foldl (flip (abstract 0)) t' xs')) bs
+                        t' <- trace (show t) transform n t EmptyCtx r s fv' d
+                        trace (show t') return (Pattern c xs,foldl (flip (abstract 0)) t' xs')) bs
     return (Case e bs')
                                               
