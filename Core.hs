@@ -1,6 +1,6 @@
 module Core(
 ) where
 
-import Core.Expr
+import Core.Term
 import Core.Pretty
 import Core.Parser

@@ -3,7 +3,7 @@ module Main(main) where
 import System (getArgs)
 import Core
 import Core.Parser
-import Core.Expr
+import Core.Term
 import Core.Pretty
 import Transform
 import Exception
@@ -22,8 +22,8 @@ main = do
                     case tType of
                         "super" -> do
                                     let
-                                        !(NoExn e') = transform 0 e EmptyCtx [] [] (free e) fs
-                                        !(e'', fs') = residualise e' (free e') [] []
+                                        (NoExn e') = transform 0 e EmptyCtx [] [] (free e) fs
+                                        (e'', fs') = residualise e' (free e') [] []
                                     putStrLn (show (Program e'' fs'))
                         _ -> error $ "Unsupported transformation: " ++ tType
                 

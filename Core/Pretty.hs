@@ -1,6 +1,6 @@
 module Core.Pretty where
 
-import Core.Expr
+import Core.Term
 import Text.PrettyPrint.HughesPJ
 import Language.Haskell.Pretty (prettyPrint)
 
@@ -12,48 +12,43 @@ class Pretty a where
 instance Pretty Program where
     pretty (Program main funcs) = vcat $ punctuate (text "\n\n") $ map prettyFunction (("main", main):funcs)
 
-instance Pretty Expr where
-    pretty (Var v) = text v
+instance Pretty Term where
+    pretty (Free v) = text v
     pretty (Bound i) = int i
     pretty (Con "List" []) = text "[]"
     pretty (Con "List" es)
      | null es = text "[]"
      | otherwise = parens $ hcat $ punctuate colon $ map pretty es
-    pretty (Con "(:)" es) = parens $ hcat (punctuate colon $ map pretty es)
-    pretty (Con c (e:e':[]))
-     | length c == 1 = pretty e <+> text c <+> pretty e'
+    pretty (Con "(:)" es) = error "here" --parens $ hcat (punctuate colon $ map pretty es)
     pretty con@(Con c es) 
      | isNat con = int $ con2nat con
      | isList con = brackets $ hcat (punctuate comma (map pretty $ con2list con))
      | otherwise = text c <+> hcat (punctuate space $ map pretty es)
     pretty (Lit l) = text $ prettyPrint l
-    pretty (Func f) = text f
-    pretty (App e@(Var v) e'''@(App e' e''))
-     | v `elem` ["$", ">>=", "=<<"] = pretty e' <+> text v <+> pretty e''
-     | otherwise = pretty e <+> pretty e'''
-    pretty (App e@(Lambda {}) e') = parens (pretty e) <+> pretty e'
-    pretty (App e e') = parens (pretty e <+> parens (pretty e'))
-    pretty (InfixApp e "(:)" e') = parens $ pretty e <> text ":" <> pretty e'
-    pretty (InfixApp e c e') = parens $ pretty e <> text c <> pretty e'
-    pretty (Case e b) = hang (text "case" <+> pretty e <+> text "of") 1 $ vcat $ map (\(p, e) -> pretty p <+> text "->" <+> pretty e) b
-    pretty (Lambda v e) = text "\\" <> text v <+> text "->" <+> pretty e
+    pretty (Fun f) = text f
+    pretty (Apply e@(Lambda {}) e') = parens (pretty e) <+> pretty e'
+    pretty (Apply e e') = parens (pretty e <+> parens (pretty e'))
+    pretty (Case e b) = hang (text "case" <+> pretty e <+> text "of") 1 $ vcat $ map prettyBranch b
+    pretty (Lambda v e) = let (xs,u) = stripLambda e
+                          in  (text "\\") <> (hsep (map text xs)) <> (text "->") <> (prettyTerm u)
     pretty (Typed e t) = parens (parens (pretty e) <+> text "::" <> text (prettyPrint t))
 
-instance Pretty Pattern where
-    pretty (Pattern "(:)" es) = parens $ hcat $ punctuate colon $ map text es
-    pretty (Pattern "[]" []) = text "[]"
-    pretty (Pattern "Cons" es) = parens $ hcat $ punctuate colon $ map text es
-    pretty (Pattern "Nil" []) = text "[]"
-    pretty (Pattern c as) = text c <+> hcat (punctuate space $ map text as)
-
-instance Show Expr where
-    show = prettyShow
-
-instance Show Pattern where
+instance Show Term where
     show = prettyShow
     
 instance Show Program where
     show = prettyShow
 
-prettyFunction :: (String, Expr) -> Doc
+prettyBranch (c,[],t) = (text c) <+> (text "->") <+> (pretty t)
+prettyBranch (c,xs,t) = let xs' = map (renamevar (free t)) xs
+                            t' = foldr (\x t->subst 0 (Free x) t) t xs'
+                        in  (text c) <> (parens (hcat (punctuate comma (map text xs')))) <+> (text "->") <+> (pretty t') $$ empty
+{-
+prettyBranch ("(:)", es, e) = (parens $ hcat $ punctuate colon $ map text es) <+> text "->" <+> pretty e
+prettyBranch ("[]", es, e) = text "[]" <+> text "->" <+> pretty e
+prettyBranch ("Cons", es, e) = (parens $ hcat $ punctuate colon $ map text es) <+> text "->" <+> pretty e
+prettyBranch ("Nil", [], e) = text "[]" <+> text "->" <+> pretty e
+prettyBranch (c, es, e) = (text c <+> hcat (punctuate space $ map text es)) <+> text "->" <+> pretty e
+-}
+prettyFunction :: (String, Term) -> Doc
 prettyFunction (name, body) = text name <+> text "=" <+> pretty body
