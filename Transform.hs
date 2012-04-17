@@ -20,7 +20,7 @@ transform n (Lambda x e) (CaseCtx k bs) r s fv d = error "Unapplied function in 
 transform n (Con c es) EmptyCtx r s fv d = do
                                            es' <- mapM (\e -> transform n e EmptyCtx r s fv d) es
                                            return (Con c es')
-transform n (Con c es) (ApplyCtx k e) r s fv d = error ("Constructor application is not saturated: " ++ c ++ " " ++show (Con c es) ++ " " ++ show k)
+transform n (Con c es) (ApplyCtx k e) r s fv d = error ("Constructor application is not saturated: " ++ show (Con c es) ++ " " ++ show k)
 transform n (Con c es) (CaseCtx k bs) r s fv d = case (find (\(c',xs,e) -> c==c' && length xs == length es) bs) of
                                                     Nothing -> error ("No matching pattern in case for term:\n\n"++show (Case (Con c es) bs))
                                                     Just (c',xs,e) -> transform n (foldr (\e e' -> subst 0 e e') e es) k r s fv d
