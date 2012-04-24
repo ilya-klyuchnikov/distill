@@ -1,6 +1,6 @@
-main = print $ show (nrev xs)
+main = show (nrev xs)
 
-nrev = \xs->case xs of
+nrev = \zs->case zs of
                [] -> []
                (x:xs) -> app (nrev xs) [x]
 app = \xs ys->case xs of

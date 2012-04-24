@@ -4,7 +4,6 @@ import System (getArgs)
 import Core
 import Core.Parser
 import Core.Term
-import Core.Pretty
 import Transform
 import Exception
 import Context
@@ -19,10 +18,11 @@ main = do
                         tType = head args
                         fileName = args !! 1
                     (Program e fs) <- parseFile ("Benchmarks/" ++ fileName ++ ".hs")
+                   
                     case tType of
                         "super" -> do
                                     let
-                                        (NoExn e') = transform 0 e EmptyCtx [] [] (free e) fs
+                                        (NoExn e') = trace ((show (Program e fs)) ++ "\n\n") $ transform 0 e EmptyCtx [] [] (free e) fs
                                         (e'', fs') = residualise e' (free e') [] []
                                     putStrLn (show (Program e'' fs'))
                         _ -> error $ "Unsupported transformation: " ++ tType

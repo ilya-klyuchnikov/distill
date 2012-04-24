@@ -21,9 +21,9 @@ transform n (Con c es) EmptyCtx r s fv d = do
                                            es' <- mapM (\e -> transform n e EmptyCtx r s fv d) es
                                            return (Con c es')
 transform n (Con c es) (ApplyCtx k e) r s fv d = error ("Constructor application is not saturated: " ++ show (Con c es) ++ " " ++ show k)
-transform n (Con c es) (CaseCtx k bs) r s fv d = case (find (\(c',xs,e) -> c==c' && length xs == length es) bs) of
+transform n (Con c es) (CaseCtx k bs) r s fv d = case (find (\(Branch c' xs e) -> c==c' && length xs == length es) bs) of
                                                     Nothing -> error ("No matching pattern in case for term:\n\n"++show (Case (Con c es) bs))
-                                                    Just (c',xs,e) -> transform n (foldr (\e e' -> subst 0 e e') e es) k r s fv d
+                                                    Just (Branch c' xs e) -> transform n (foldr (\e e' -> subst 0 e e') e es) k r s fv d
 transform n (Apply e e') k r s fv d = transform n e (ApplyCtx k e') r s fv d
 transform 0 (Fun f) k r s fv d = let e = place (Fun f) k
                                  in  trace (show e) (case (find (\e' -> isJust (inst e' e [])) r) of
@@ -93,10 +93,10 @@ transform n (Fold f t) k r s fv d = case (find (\t' -> isJust (inst t' t [])) r)
 transformCtx n e EmptyCtx r s fv d = return e
 transformCtx n e (ApplyCtx k e') r s fv d = do e'' <- transform n e' EmptyCtx r s fv d
                                                transformCtx n (Apply e e'') k r s fv d
-transformCtx n e (CaseCtx k bs) r s fv d = do bs' <- mapM (\(c,xs,e') -> let e'' = place e' k
-                                                                             fv' = foldr (\x fv -> let x' = renamevar fv x in x':fv) fv xs
-                                                                             xs' = take (length xs) fv'
-                                                                             t = foldr (\x e -> subst 0 (Free x) e) (replace e (Con c (map Free xs')) e'') xs'
-                                                                         in do t' <- transform n t EmptyCtx r s fv' d
-                                                                               return (c,xs,foldl (\e x -> abstract 0 x e) t' xs')) bs
+transformCtx n e (CaseCtx k bs) r s fv d = do bs' <- mapM (\(Branch c xs e') -> let e'' = place e' k
+                                                                                    fv' = foldr (\x fv -> let x' = renamevar fv x in x':fv) fv xs
+                                                                                    xs' = take (length xs) fv'
+                                                                                    t = foldr (\x e -> subst 0 (Free x) e) (replace e (Con c (map Free xs')) e'') xs'
+                                                                                in do t' <- transform n t EmptyCtx r s fv' d
+                                                                                      return (Branch c xs $ foldl (\e x -> abstract 0 x e) t' xs')) bs
                                               return (Case e bs')
