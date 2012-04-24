@@ -1,9 +1,8 @@
 module Main(main) where
 
 import System (getArgs)
-import Core
-import Core.Parser
-import Core.Term
+import Parser
+import Expr
 import Transform
 import Exception
 import Context

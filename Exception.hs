@@ -1,10 +1,11 @@
 module Exception where
 
-data Exception a b = Exn a | NoExn b deriving Show
+data Exception a b = Exn a 
+                   | NoExn b deriving Show
 
 instance Monad (Exception a) where
     return x = NoExn x
-    (>>=) (Exn d) f = (Exn d)
+    (>>=) (Exn d) f = Exn d
     (>>=) (NoExn a) f = f a
 
 handle :: Exception a b -> (a -> Exception a b) -> Exception a b
@@ -14,4 +15,3 @@ handle x f = case x of
 
 throw :: a -> Exception a b
 throw x = Exn x
-

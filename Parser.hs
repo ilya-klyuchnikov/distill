@@ -1,11 +1,10 @@
-module Core.Parser where
+module Parser where
 
-import Core.Term
+import Expr
 import qualified Language.Haskell.Syntax as L
 import qualified Language.Haskell.Parser as P
 import Data.List (delete)
 import Data.Foldable (find)
-import Debug.Trace
 
 parseFile f = do
     contents <- readFile f
@@ -33,12 +32,12 @@ isFuncDecl (L.HsPatBind {}) = True
 isFuncDecl (L.HsFunBind {}) = True
 isFuncDecl _ = False
 
-fixFuncs names e@(Free v)
- | v `elem` names = Fun v
+fixFuncs names e@(Var v)
+ | v `elem` names = Func v
  | otherwise = e
 fixFuncs names (Con s es) = Con s $ map (fixFuncs names) es
 fixFuncs names (Lambda v e) = Lambda v $ fixFuncs names e
-fixFuncs names (Apply e e') = Apply (fixFuncs names e) (fixFuncs names e')
+fixFuncs names (App e e') = App (fixFuncs names e) (fixFuncs names e')
 fixFuncs names (Case e bs) = Case (fixFuncs names e) (map (\(Branch c es e) -> (Branch c es $ fixFuncs names e)) bs)
 fixFuncs names (Typed e t) = Typed (fixFuncs names e) t
 fixFuncs names e = e
@@ -66,20 +65,20 @@ parseHsRhs (L.HsGuardedRhss es) =
     
 parseHsGuardedRhs (L.HsGuardedRhs _ c e) = (parseHsExp c, parseHsExp e)
 
-buildGuardCase ((c, e):[]) = Case c [(Branch "True" [] e)]
-buildGuardCase ((c, e):es) = Case c [(Branch "True" [] e), (Branch "False" [] $ buildGuardCase es)]
+buildGuardCase ((c, e):[]) = Case c [Branch "True" [] e]
+buildGuardCase ((c, e):es) = Case c [Branch "True" [] e, Branch "False" [] $ buildGuardCase es]
 
 parseHsName (L.HsIdent s) = s
 parseHsName (L.HsSymbol s) = s
 
-parseHsExp (L.HsVar v) = Free $ parseHsQName v
+parseHsExp (L.HsVar v) = Var $ parseHsQName v
 parseHsExp (L.HsCon c) = Con (parseHsQName c) []
 parseHsExp (L.HsLit l) = Lit l
-parseHsExp (L.HsInfixApp e q e') = Apply (Apply (Free $ parseHsQOp q)  (parseHsExp e)) (parseHsExp e')
+parseHsExp (L.HsInfixApp e q e') = App (App (Var $ parseHsQOp q)  (parseHsExp e)) (parseHsExp e')
 parseHsExp a@(L.HsApp e e')
  | isConApp a = Con (getConsName a) (getConsArgs a)
- | otherwise = Apply (parseHsExp e) (parseHsExp e')
-parseHsExp (L.HsNegApp e) = Apply (Free "negate") (parseHsExp e)
+ | otherwise = App (parseHsExp e) (parseHsExp e')
+parseHsExp (L.HsNegApp e) = App (Var "negate") (parseHsExp e)
 parseHsExp (L.HsLambda _ vs e) =
     let
         e' = parseHsExp e
@@ -89,8 +88,8 @@ parseHsExp (L.HsLet decls e) =
     let
         fLets = parseHsDecls decls
         fExpr = parseHsExp e
-    in foldl (\e (f', e') -> Apply (Lambda f' (abstract 0 f' e)) e') fExpr fLets
-parseHsExp (L.HsIf c t e) = Case (parseHsExp c) [(Branch "True" [] $ parseHsExp t), (Branch "False" [] $ parseHsExp e)]
+    in foldl (\e (f', e') -> App (Lambda f' (abstract 0 f' e)) e') fExpr fLets
+parseHsExp (L.HsIf c t e) = Case (parseHsExp c) [Branch "True" [] $ parseHsExp t, Branch "False" [] $ parseHsExp e]
 parseHsExp (L.HsCase e alts) = Case (parseHsExp e) (parseCaseAlts alts)
 parseHsExp (L.HsTuple es) = Con "Tuple" (map parseHsExp es)
 parseHsExp (L.HsList []) = Con "Nil" []
@@ -104,18 +103,18 @@ parseCaseAlts = map parseCaseAlt
 parseCaseAlt (L.HsAlt _ pat alt []) =
     let
         p'@(c, es) = parseCasePat pat
-        e' = foldl (\e v -> abstract 0 v e) (parseHsGuardedAlts alt) (es)
+        e' = foldl (flip (abstract 0)) (parseHsGuardedAlts alt) es
     in (Branch c es e')
 
 parseHsGuardedAlts (L.HsUnGuardedAlt e) = parseHsExp e
 parseHsGuardedAlts (L.HsGuardedAlts es) = parseGuardedAlts es
 
-parseGuardedAlts (L.HsGuardedAlt _ e e':[]) = Case (parseHsExp e) [(Branch "True" [] $ parseHsExp e')]
-parseGuardedAlts (L.HsGuardedAlt _ e e':as) = Case (parseHsExp e) [(Branch "True" [] $ parseHsExp e'), (Branch "False" [] $ parseGuardedAlts as)]
+parseGuardedAlts (L.HsGuardedAlt _ e e':[]) = Case (parseHsExp e) [Branch "True" [] $ parseHsExp e']
+parseGuardedAlts (L.HsGuardedAlt _ e e':as) = Case (parseHsExp e) [Branch "True" [] $ parseHsExp e', Branch "False" [] $ parseGuardedAlts as]
 
-parseCasePat (L.HsPApp c es) = ((parseHsQName c), (map (\(L.HsPVar v) -> parseHsName v) es))
+parseCasePat (L.HsPApp c es) = (parseHsQName c, map (\(L.HsPVar v) -> parseHsName v) es)
 parseCasePat (L.HsPParen p) = parseCasePat p
-parseCasePat (L.HsPInfixApp (L.HsPVar e) c (L.HsPVar e')) = ((parseHsQName c), [parseHsName e, parseHsName e'])
+parseCasePat (L.HsPInfixApp (L.HsPVar e) c (L.HsPVar e')) = (parseHsQName c, [parseHsName e, parseHsName e'])
 parseCasePat (L.HsPList []) = ("Nil", [])
 
 isConApp (L.HsApp (L.HsCon _) _) = True

@@ -1,1 +1,4 @@
-Haskell source-to-source transformers with a potentially super-linear speed increase.
+Level based Haskell Optimizers.
+
+Currently supports 
+ * Supercompilation (Level-0)
