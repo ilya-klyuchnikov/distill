@@ -11,6 +11,10 @@ import Debug.Trace
 
 transform n e@(Var _) k r s fv d = transformCtx n e k r s fv d
 transform _ (Bound _) _ _ _ _ _ = error "Unexpected bound variable"
+transform n (Typed e t) k r s fv d = do
+    e' <- transform n e k r s fv d
+    return (Typed e' t)
+transform n e@(Lit _) _ _ _ _ _ = return (e)
 transform n (Lambda v e) EmptyCtx r s fv d = do
     e' <- transform n (subst 0 (Var v') e) EmptyCtx r s (v':fv) d
     return (Lambda v (abstract 0 v' e'))

@@ -53,12 +53,15 @@ instance Eq Expr where
    (==) (Let _ e f) (Let _ e' f') = e == e' && f == f'
    (==) (Unfold _ e f) (Unfold _ e' f') = e == e' && f == f'
    (==) (Fold f _) (Fold f' _) = f == f'
+   (==) (Lit l) (Lit l') = l == l'
+   (==) (Typed e t) (Typed e' t') = e == e' && t == t'
    (==) t t' = False
    
 instance Matchable Expr where
     match (Con c ts) (Con c' ts') = c == c' && length ts == length ts'
     match (Case _ bs) (Case _ bs') = length bs == length bs' && all (uncurry match) (zip bs bs')
     match (Unfold f _ _) (Unfold f' _ _) = f == f'
+    match (Typed _ t) (Typed _ t') = t == t'
     match e e' = e == e'
    
 instance Matchable Branch where
@@ -86,6 +89,8 @@ instance Pretty Expr where
    pretty e'@(Lambda v e) = let (vs, f) = stripLambda e'
                             in  text "\\" <> hsep (map text vs) <> text "->" <> pretty f
    pretty (Typed e t) = parens (parens (pretty e) <+> text "::" <> text (prettyPrint t))
+   pretty (Unfold _ _ _) = text ""
+   
 
 instance Pretty Branch where
    pretty (Branch c [] e) = text c <+> text "->" <+> pretty e
@@ -109,7 +114,9 @@ renaming e@(Case ce bs) e'@(Case ce' bs') s
 renaming (Let _ e f) (Let _ e' f') s = renaming e e' s >>= renaming f f'
 renaming e@(Unfold _ _ f) e'@(Unfold _ _ f') s 
  | match e e' = renaming f f' s
-renaming e e' s
+renaming e@(Typed f _) e'@(Typed f' _) s
+ | match e e' = renaming f f' s
+renaming e e' s 
  | match e e' = Just s
  | otherwise  = Nothing
 
@@ -126,11 +133,15 @@ inst e@(Case ce bs) e'@(Case ce' bs') s
 inst (Let _ e f) (Let _ e' f') s = inst e e' s >>= inst f f'
 inst e@(Unfold _ _ f) e'@(Unfold _ _ f') s 
  | match e e' = inst f f' s
+inst e@(Typed f _) e'@(Typed f' _) s
+ | match e e' = inst f f' s
 inst e e' s
  | match e e' = Just s
  | otherwise = Nothing
 
-isRenaming s = all (\(_, Var _) -> True) s
+isRenaming [] = True 	
+isRenaming ((_,Var _):s) = isRenaming s
+isRenaming s = False
 
 embedding t u s = mplus (couple t u s) (dive t u s)
 
@@ -147,6 +158,8 @@ couple e@(Case ce bs) e'@(Case ce' bs') s
 couple (Let _ e f) (Let _ e' f') s = embedding e e' s >>= embedding f f'
 couple e@(Unfold _ _ f) e'@(Unfold _ _ f') s 
  | match e e' = embedding f f' s
+couple e@(Typed f _) e'@(Typed f' _) s
+ | match e e' = embedding f f' s
 couple e e' s
  | match e e' = Just s
  | otherwise = Nothing
@@ -155,6 +168,7 @@ dive e (Con _ es) s = msum (map (\e' -> embedding e e' s) es)
 dive e (App e' f) s = mplus (embedding e e' s) (embedding e f s)
 dive e (Case e' bs) s = mplus (embedding e e' s) (msum (map (\(Branch _ vs e') -> embedding e (shift (length vs) 0 e') s) bs))
 dive e (Unfold _ _ e') s = embedding e e' s
+dive e (Typed e' _) s = embedding e e' s
 dive _ _ _ = Nothing
 
 generalise e@(Var _) _ s _ _ = (e, s)
@@ -193,6 +207,9 @@ generalise e@(Unfold v e'' f) e'@(Unfold _ _ f') s fv bv
  | match e e' = 
      let (f'', s') = generalise f f' s fv bv
      in (Unfold v e'' f'', s')
+generalise e@(Typed f t) e'@(Typed f' _) s fv bv
+ | match e e' = let (e'', s') = generalise f f' s fv bv
+                in (Typed e'' t, s)
 generalise e e' s fv bv 
  | match e e' = (e, s)
  | otherwise = 
@@ -246,6 +263,9 @@ residualise (Fold f e) fv r d = case find (\(f', e') -> isJust (renaming e' e []
                                    Just (f', e') -> let vs = free e
                                                    in (foldr (\v e -> App e (Var v)) (Func f') vs, d)
                                    Nothing -> error ("Fold has no matching unfold: " ++ f)
+residualise (Typed f t) fv r d =
+    let (f', d') = residualise f fv r d
+    in (Typed f' t, d')
 residualise e _ _ d = (e, d)
 
 free t = free' [] t
@@ -259,6 +279,7 @@ free' vs (App e f) = free' (free' vs e) f
 free' vs (Case e bs) = foldr (\(Branch _ _ e) vs' -> free' vs' e) (free' vs e) bs
 free' vs (Let _ e f) = free' (free' vs e) f
 free' vs (Unfold _ _ f) = free' vs f
+free' vs (Typed e _) = free' vs e
 free' vs _ = vs
 
 bound t = bound' 0 [] t
@@ -273,6 +294,7 @@ bound' d bs (App e f) = bound' d (bound' d bs f) e
 bound' d bs (Case e bs') = foldr (\(Branch _ vs e) bs -> bound' (d + length vs) bs e) (bound' d bs e) bs'
 bound' d bs (Let _ e f) = bound' d (bound' (d + 1) bs f) e
 bound' d bs (Unfold _ _ f) = bound' d bs f
+bound' d bs (Typed e _) = bound' d bs e
 bound' _ bs _ = bs
 
 funs fs (Lambda _ e) = funs fs e
@@ -281,6 +303,7 @@ funs fs (Func f) = f:fs
 funs fs (App e f) = funs (funs fs e) f
 funs fs (Case e bs) = foldr (\(Branch _ _ e) fs -> funs fs e) (funs fs e) bs
 funs fs (Let _ e f) = funs (funs fs e) f
+funs fs (Typed e _) = funs fs e
 funs fs _ = fs
 
 unfold fs (Lambda v e) = Lambda v (unfold fs e)
@@ -291,6 +314,7 @@ unfold fs e@(Func f) = case lookup f fs of
 unfold fs (App e f) = App (unfold fs e) (unfold fs f)
 unfold fs (Case e bs) = Case (unfold fs e) (map (\(Branch c vs e) -> (Branch c vs $ unfold fs e)) bs)
 unfold fs (Let v e f) = Let v (unfold fs e) (unfold fs f)
+unfold fs (Typed e t) = Typed (unfold fs e) t
 unfold _ e = e
 
 shift 0 d e = e
@@ -304,6 +328,7 @@ shift i d (Case e bs) = Case (shift i d e) (map (\(Branch c vs e) -> (Branch c v
 shift i d (Let v e f) = Let v (shift i d e) (shift i (d + 1) f)
 shift i d (Unfold v e f) = Unfold v (shift i d e) (shift i d f)
 shift i d (Fold f e) = Fold f (shift i d e)
+shift i d (Typed e t) = Typed (shift i d e) t
 shift _ _ e = e
 
 subst i e e'@(Bound i')
@@ -317,6 +342,7 @@ subst i e (Case e' bs) = Case (subst i e e') (map (\(Branch c vs f) -> (Branch c
 subst i e (Let v e' f) = Let v (subst i e e') (subst (i + 1) e f)
 subst i e (Unfold v e' f) = Unfold v (subst i e e') (subst i e f)
 subst i e (Fold f e') = Fold f (subst i e e')
+subst i e (Typed e' t) = Typed (subst i e e') t
 subst _ _ e = e
 
 abstract i b e@(Var v) 
@@ -333,6 +359,8 @@ abstract i b (Case e bs) = Case (abstract i b e) (map (\(Branch c vs e) -> (Bran
 abstract i b (Let v e f) = Let v (abstract i b e) (abstract (i + 1) b f)
 abstract i b (Unfold v e f) = Unfold v (abstract i b e) (abstract i b f)
 abstract i b (Fold v e) = Fold v (abstract i b e)
+abstract i b (Typed e t) = Typed (abstract i b e) t
+abstract i b e = e
 
 rename s e@(Var v) = case lookup v s of
                        Just v'  -> Var v'
@@ -346,6 +374,7 @@ rename s (Case e bs) = Case (rename s e) (map (\(Branch c vs e) -> (Branch c vs 
 rename s (Let v e f) = Let v (rename s e) (rename s f)
 rename s (Unfold v e f) = Unfold v (rename s e) (rename s f)
 rename s (Fold f e) = Fold f (rename s e)
+rename s (Typed e t) = Typed (rename s e) t
 
 replace t u v 
  | t == v = u
@@ -358,6 +387,7 @@ replace' e f (Case e' bs) = Case (replace e f e') (map (\(Branch c vs e') -> (Br
 replace' e f (Let v e' f') = Let v (replace' e f e') (replace' (shift 1 0 e) (shift 1 0 f) f')
 replace' e f (Unfold v e' f') = Unfold v (replace' e f e') (replace' e f f')
 replace' e f (Fold f' e') = Fold f' (replace' e f e')
+replace' e f (Typed e' t) = Typed (replace e f e') t
 replace' _ _ e = e
 
 renamevar vs v
