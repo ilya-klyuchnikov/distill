@@ -16,13 +16,13 @@ main = do
                     let
                         tType = head args
                         fileName = args !! 1
-                    (Program e fs) <- parseFile ("Benchmarks/" ++ fileName ++ ".hs")
-                   
+                    (Program imports e fs) <- parseFile ("Benchmarks/" ++ fileName ++ ".hs")
                     case tType of
                         "super" -> do
                                     let
-                                        (NoExn e') = trace ((show (Program e fs)) ++ "\n\n") $ transform 0 e EmptyCtx [] [] (free e) fs
+                                        (NoExn e') = {-trace ((show (Program e fs)) ++ "\n\n") $-} transform 0 e EmptyCtx [] [] (free e) fs
                                         (e'', fs') = residualise e' (free e') [] []
-                                    putStrLn (show (Program e'' fs'))
+                                    putStrLn (show (Program imports e'' fs'))
+                                    writeFile ("Benchmarks/" ++ fileName ++ "_super.hs") (show (Program imports e'' fs'))
                         _ -> error $ "Unsupported transformation: " ++ tType
                 

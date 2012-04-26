@@ -3,6 +3,7 @@ module Expr where
 import Data.Maybe (isJust)
 import Data.List (intersect) 
 import Data.Foldable (foldrM,find)
+import Debug.Trace
 import Control.Monad (msum, mplus)
 import Text.PrettyPrint.HughesPJ
 import Language.Haskell.Pretty (prettyPrint)
@@ -31,7 +32,7 @@ data Expr = Var String
 
 data Branch = Branch String [String] Expr
 
-data Program = Program Expr [(String,Expr)]
+data Program = Program [L.HsImportDecl] Expr [(String,Expr)]
 
 instance Show Expr where
     show = prettyShow
@@ -68,38 +69,50 @@ instance Matchable Branch where
     match (Branch c xs t) (Branch c' xs' t') = c == c' && length xs == length xs'
   
 instance Pretty Program where
-   pretty (Program main funcs) = vcat $ punctuate (text "\n\n") $ map prettyFuncction (("main", main):funcs)
+   pretty (Program imports main funcs) = vcat $ (punctuate (text "\n") $ (map (text . prettyPrint) imports) ++ (map prettyFunction (("main", main):funcs)))
 
 instance Pretty Expr where
-   pretty (Var v) = text v
+   pretty (Var v)
+    | v `elem` ["show", "print"] = text (v ++ " $ ")
+    | otherwise = text v
    pretty (Bound i) = text "#" <> int i
    pretty (Con "List" []) = text "[]"
    pretty (Con "List" es)
     | null es = text "[]"
     | otherwise = parens $ hcat $ punctuate colon $ map pretty es
    pretty con@(Con c es) 
+    | c == "Nil" = text "[]"
+    | c == "Cons" = parens $ hcat $ punctuate colon $ map pretty es
+    | c `elem` [".", ":", "$", "$$", "==", "<=", ">=", "<", ">"] = parens $ hcat $ punctuate (text c) $ map pretty es
     | isNat con = int $ con2nat con
     | isList con = brackets $ hcat (punctuate comma (map pretty $ con2list con))
     | otherwise = text c <+> hcat (punctuate space $ map pretty es)
    pretty (Lit l) = text $ prettyPrint l
    pretty (Func f) = text f
    pretty (App e@(Lambda {}) e') = parens (pretty e) <+> pretty e'
-   pretty (App e e') = pretty e <+> parens (pretty e')
+   pretty (App (App (Var "Cons") e) e') = parens $ pretty e <> colon <> pretty e'
+   pretty (App e e') = pretty e <+> pretty e'
    pretty (Case e b) = hang (text "case" <+> pretty e <+> text "of") 1 $ vcat $ map pretty b
    pretty e'@(Lambda v e) = let (vs, f) = stripLambda e'
-                            in  text "\\" <> hsep (map text vs) <> text "->" <> pretty f
+                            in  text "\\" <> hsep (map text vs) <+> text "->" <+> pretty f
    pretty (Typed e t) = parens (parens (pretty e) <+> text "::" <> text (prettyPrint t))
    pretty (Unfold _ _ _) = text ""
    
 
 instance Pretty Branch where
-   pretty (Branch c [] e) = text c <+> text "->" <+> pretty e
+   pretty (Branch c [] e) 
+    | c == "Nil" = text "[]" <+> text "->" <+> pretty e
+    | otherwise = text c <+> text "->" <+> pretty e
    pretty (Branch c vs e) = let vs' = map (renamevar (free e)) vs
                                 e' = foldr (\v e -> subst 0 (Var v) e) e vs'
-                            in text c <> parens (hcat (punctuate comma (map text vs'))) <+> text "->" <+> pretty e' $$ empty
+                            in (if c == "Nil"
+                                then (text "[]")
+                                else if c == "Cons"
+                                      then parens $ hcat $ punctuate colon $ map text vs'
+                                      else text c <> parens (hcat (punctuate comma (map text vs')))) <+> text "->" <+> pretty e' $$ empty
                             
-prettyFuncction :: (String, Expr) -> Doc
-prettyFuncction (name, body) = text name <+> text "=" <+> pretty body
+prettyFunction :: (String, Expr) -> Doc
+prettyFunction (name, body) = text name <+> text "=" <+> pretty body
 
 renaming (Var v) (Var v') s 
  | (v, v') `elem` s = Just s
