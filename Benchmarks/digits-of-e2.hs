@@ -52,11 +52,11 @@ carryPropagate base ds = case ds of
     [] -> error "carryPropagate"
 
 e :: String
-e = (('2':[])++) $ 
-    tail . concat $
+e = ("2") ++ 
+    (tail . concat $
     map (show.head) $
-    iterate (carryPropagate 2 . map (10*) . tail) $
-    2:repeat 1
+    iterate (carryPropagate 2 . map (\x -> 10 * x) . tail) $
+    2:repeat 1)
 
 
 root i = take i e

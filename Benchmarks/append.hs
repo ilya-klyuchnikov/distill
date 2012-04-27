@@ -1,4 +1,6 @@
-main = show (nrev xs)
+import Debug.Trace
+
+main = print $ show (nrev xs)
 
 nrev = \zs->case zs of
                [] -> []

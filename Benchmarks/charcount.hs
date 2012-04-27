@@ -9,5 +9,5 @@ import System.IO.Unsafe
 main = print . charcount =<< getContents
 
 charcount xs
- | length == 1 = 1
+ | length xs == 1 = 1
  | otherwise = 1 + (charcount (tail xs))

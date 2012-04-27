@@ -14,18 +14,25 @@ parseFile f = do
     case m of
         (P.ParseOk n) ->
             let 
-                (imports, funcs) = parseHsModule n
+                (imports, dataDecls, funcs) = parseHsModule n
                 (funcNames, funcBodies) = unzip funcs
                 fixedFuncs = map (fixFuncs funcNames) funcBodies
                 funcs' = zip funcNames fixedFuncs
             in case find (\(f, e) -> f == "main") funcs' of
-                Just (f, e) -> return $ Program imports e (delete (f, e) funcs')
+                Just (f, e) -> return $ Program imports dataDecls e (delete (f, e) funcs')
                 _ -> error "No main function found"
         _ -> error "Problem"
         
-parseHsModule (L.HsModule _ _ _ imports decls) = (imports, parseHsDecls decls)
+parseHsModule (L.HsModule _ _ _ imports decls) = (imports, (filterDataDecls decls), parseHsDecls decls)
 
 parseHsDecls decls = map parseHsDecl $ filterDecls decls
+
+filterDataDecls = filter isDataDecl
+
+isDataDecl (L.HsPatBind {}) = False
+isDataDecl (L.HsFunBind {}) = False
+isDataDecl (L.HsTypeSig {}) = False
+isDataDecl _ = True
 
 filterDecls = filter isFuncDecl
 
@@ -72,7 +79,9 @@ buildGuardCase ((c, e):es) = Case c [Branch "True" [] e, Branch "False" [] $ bui
 parseHsName (L.HsIdent s) = s
 parseHsName (L.HsSymbol s) = s
 
-parseHsExp (L.HsVar v) = Var $ parseHsQName v
+parseHsExp (L.HsVar v)
+ | parseHsQName v == "otherwise" = Con "True" []
+ | otherwise = Var $ parseHsQName v
 parseHsExp (L.HsCon c) = Con (parseHsQName c) []
 parseHsExp (L.HsLit (L.HsInt i)) = nat2con i
 parseHsExp (L.HsLit l) = Lit l
@@ -100,7 +109,7 @@ parseHsExp (L.HsTuple es) = Con "Tuple" (map parseHsExp es)
 parseHsExp (L.HsList []) = Con "Nil" []
 parseHsExp (L.HsList es) = list2con $ map parseHsExp es
 parseHsExp (L.HsParen e) = parseHsExp e
-parseHsExp (L.HsExpTypeSig _ e t) = Typed (parseHsExp e) t
+parseHsExp (L.HsExpTypeSig _ e t) = parseHsExp e --Typed (parseHsExp e) t
 parseHsExp e = error $ show e
 
 parseCaseAlts = map parseCaseAlt
