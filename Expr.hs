@@ -118,39 +118,41 @@ renaming (Var v) (Var v') s
  | (v, v') `elem` s = Just s
  | v `elem` fst (unzip s) = Nothing
  | otherwise = Just ((v, v'):s)
-renaming (Lambda _ e) (Lambda _ e') s = renaming e e' s
-renaming e@(Con _ es) e'@(Con _ es') s 
- | match e e' = foldrM (\(e, e') s -> renaming e e' s) s (zip es es')
-renaming (App e f) (App e' f') s = renaming e e' s >>= renaming f f'
-renaming e@(Case ce bs) e'@(Case ce' bs') s 
- | match e e' = renaming ce ce' s >>= \s -> foldrM (\(Branch _ _ e, Branch _ _ e') s -> renaming e e' s) s (zip bs bs')
-renaming (Let _ e f) (Let _ e' f') s = renaming e e' s >>= renaming f f'
-renaming e@(Unfold _ _ f) e'@(Unfold _ _ f') s 
- | match e e' = renaming f f' s
-renaming e@(Typed f _) e'@(Typed f' _) s
- | match e e' = renaming f f' s
-renaming e e' s 
- | match e e' = Just s
- | otherwise  = Nothing
+renaming (Bound i) (Bound i') s | i == i' = Just s
+renaming (Lambda _ t) (Lambda _ t') s = renaming t t' s
+renaming (Con c ts) (Con c' ts') s | c == c' && length ts == length ts' = foldrM (\(t,t') s -> renaming t t' s) s (zip ts ts')
+renaming (App t u) (App t' u') s = (renaming t t' s) >>= (renaming u u')
+renaming (Func f) (Func f') s | f==f' = Just s
+renaming c@(Case t bs) c'@(Case t' bs') s | match c c' = (renaming t t' s) >>= (\s -> foldrM (\((Branch _ _ t),(Branch _ _ t')) s -> renaming t t' s) s (zip bs bs'))
+renaming (Let _ t u) (Let _ t' u') s = (renaming t t' s) >>= (renaming u u')
+renaming (Unfold f t u) (Unfold f' t' u') s | f==f' = renaming u u' s
+renaming (Fold f t) (Fold f' t') s | f==f' = Just s
+renaming (Typed e t) (Typed e' t') s | t == t' = renaming e e' s
+renaming t t' s = Nothing
+
 
 inst (Var v) e s 
  | (v, e) `elem` s = Just s
  | v `elem` fst (unzip s) = Nothing
  | otherwise = Just ((v, e):s)
-inst (Lambda _ e) (Lambda _ e') s = inst e e' s
-inst e@(Con _ es) e'@(Con _ es') s 
- | match e e' = foldrM (\(e, e') s -> inst e e' s) s (zip es es')
-inst (App e f) (App e' f') s = inst e e' s >>= inst f f'
-inst e@(Case ce bs) e'@(Case ce' bs') s 
- | match e e' = inst ce ce' s >>= \s -> foldrM (\(Branch _ _ e, Branch _ _ e') s -> inst e e' s) s (zip bs bs')
-inst (Let _ e f) (Let _ e' f') s = inst e e' s >>= inst f f'
-inst e@(Unfold _ _ f) e'@(Unfold _ _ f') s 
- | match e e' = inst f f' s
-inst e@(Typed f _) e'@(Typed f' _) s
- | match e e' = inst f f' s
-inst e e' s
- | match e e' = Just s
- | otherwise = Nothing
+inst (Bound i) (Bound i') s 
+ | i == i' = Just s
+inst (Lambda _ t) (Lambda _ t') s = inst t t' s
+inst (Con c ts) (Con c' ts') s 
+ | c == c' && length ts == length ts' = foldrM (\ (t,t') s -> inst t t' s) s (zip ts ts')
+inst (App t u) (App t' u') s = (inst t t' s) >>= (inst u u')
+inst (Func f) (Func f') s 
+ | f == f' = Just s
+inst c@(Case t bs) c'@(Case t' bs') s 
+ | match c c' = (inst t t' s) >>= (\s->foldrM (\ ((Branch _ _ t),(Branch _ _ t')) s -> inst t t' s) s (zip bs bs'))
+inst (Let _ t u) (Let _ t' u') s = (inst t t' s) >>= (inst u u')
+inst (Unfold f t u) (Unfold f' t' u') s 
+ | f==f' = inst u u' s
+inst (Fold f t) (Fold f' t') s 
+ | f==f' = Just s
+inst (Typed e t) (Typed e' t') s
+ | t == t' = inst e e' s
+inst _ _ _ = Nothing
 
 isRenaming [] = True 	
 isRenaming ((_,Var _):s) = isRenaming s
@@ -158,24 +160,21 @@ isRenaming s = False
 
 embedding t u s = mplus (couple t u s) (dive t u s)
 
-couple (Var v) (Var v') s
- | (v, v') `elem` s = Just s
- | v `elem` fst (unzip s) = Nothing
- | otherwise = Just ((v, v'):s)
-couple (Lambda _ e) (Lambda _' e') s = embedding e e' s
-couple e@(Con _ es) e'@(Con _ es') s 
- | match e e' = foldrM (\(e, e') s -> embedding e e' s) s (zip es es')
-couple (App e f) (App e' f') s = couple e e' s >>= embedding f f'
-couple e@(Case ce bs) e'@(Case ce' bs') s 
- | match ce ce' = embedding ce ce' s >>= \s -> foldrM (\(Branch _ _ e, Branch _ _ e') s -> embedding e e' s) s (zip bs bs')
-couple (Let _ e f) (Let _ e' f') s = embedding e e' s >>= embedding f f'
-couple e@(Unfold _ _ f) e'@(Unfold _ _ f') s 
- | match e e' = embedding f f' s
-couple e@(Typed f _) e'@(Typed f' _) s
- | match e e' = embedding f f' s
-couple e e' s
- | match e e' = Just s
- | otherwise = Nothing
+couple (Var x) (Var x') s = if x `elem` fst (unzip s)
+                                then if (x,x') `elem` s then Just s else Nothing
+                                else Just ((x,x'):s)
+couple (Bound i) (Bound i') s | i == i' = Just s
+couple (Lambda _ t) (Lambda _' t') s = embedding t t' s
+couple (Con c' ts) (Con c'' ts') s | c' == c'' && length ts == length ts' = foldrM (\ (t,t') s -> embedding t t' s) s (zip ts ts')
+couple (App t u) (App t' u') s = (couple t t' s) >>= (embedding u u')
+couple (Func f) (Func f') s | f==f' = Just s
+couple c@(Case t bs) c'@(Case t' bs') s | match c c' = (embedding t t' s) >>= (\s->foldrM (\ ((Branch _ _ t),(Branch _ _ t')) s -> embedding t t' s) s (zip bs bs'))
+couple (Let _ t u) (Let _ t' u') s = (embedding t t' s) >>= (embedding u u')
+couple (Unfold f t u) (Unfold f' t' u') s | f==f' = embedding u u' s
+couple (Fold f t) (Fold f' t') s | f==f' = Just s
+couple (Typed e t) (Typed e' t') s | t == t' = embedding e e' s
+couple (Lit l) (Lit l') s | l == l' = Just s
+couple t u s = Nothing
 
 dive e (Con _ es) s = msum (map (\e' -> embedding e e' s) es)
 dive e (App e' f) s = mplus (embedding e e' s) (embedding e f s)
@@ -185,7 +184,7 @@ dive e (Typed e' _) s = embedding e e' s
 dive _ _ _ = Nothing
 
 generalise e@(Var _) _ s _ _ = (e, s)
-generalise (Lambda v e) (Lambda _ e') s fv bv = 
+generalise f@(Lambda v e) (Lambda _ e') s fv bv = 
     let (gv,_) = unzip s
         v'' = renamevar (gv ++ fv) v
         (e'',s') = generalise (subst 0 (Var v'') e) (subst 0 (Var v'') e') s (v'':fv) (v'':bv)

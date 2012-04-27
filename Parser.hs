@@ -74,10 +74,14 @@ parseHsName (L.HsSymbol s) = s
 
 parseHsExp (L.HsVar v) = Var $ parseHsQName v
 parseHsExp (L.HsCon c) = Con (parseHsQName c) []
+parseHsExp (L.HsLit (L.HsInt i)) = nat2con i
 parseHsExp (L.HsLit l) = Lit l
-parseHsExp (L.HsInfixApp e q e') = App (App (Var $ parseHsQOp q)  (parseHsExp e)) (parseHsExp e')
+parseHsExp (L.HsInfixApp e q e')
+ | parseHsQOp q == "Cons" = Con "Cons" [parseHsExp e, parseHsExp e']
+ | parseHsQOp q == "Nil" = Con "Nil" []
+ | otherwise = App (App (Var $ parseHsQOp q)  (parseHsExp e)) (parseHsExp e')
 parseHsExp a@(L.HsApp e e')
- | isConApp e = trace (getConsName e) Con (getConsName a) (getConsArgs a)
+ | isConApp a = Con (getConsName a) (getConsArgs a)
  | otherwise = App (parseHsExp e) (parseHsExp e')
 parseHsExp (L.HsNegApp e) = App (Var "negate") (parseHsExp e)
 parseHsExp (L.HsLambda _ vs e) =
@@ -118,12 +122,10 @@ parseCasePat (L.HsPParen p) = parseCasePat p
 parseCasePat (L.HsPInfixApp (L.HsPVar e) c (L.HsPVar e')) = (parseHsQName c, [parseHsName e, parseHsName e'])
 parseCasePat (L.HsPList []) = ("Nil", [])
 
-isConApp (L.HsCon _) = True
 isConApp (L.HsApp (L.HsCon _) _) = True
 isConApp (L.HsApp e _) = isConApp e
 isConApp _ = False
 
-getConsName (L.HsCon c) = parseHsQName c
 getConsName (L.HsApp (L.HsCon c) _) = parseHsQName c
 getConsName (L.HsApp e _) = getConsName e
 
