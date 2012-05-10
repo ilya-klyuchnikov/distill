@@ -1,4 +1,6 @@
 module Main(main) where
+	
+import Prelude hiding (map, iterate, filter, head)
 
 suCC :: Int -> Int
 suCC x = x + 1
@@ -16,4 +18,20 @@ primes = map head (iterate the_filter (iterate suCC 2))
 
 root x = primes !! x
 
-main = print (root (6000 :: Int) :: Int)
+main = print (root (60000 :: Int) :: Int)
+
+map f xs = case xs of
+	[] -> []
+	(x:xs) -> (f x:map f xs)
+
+filter f xs = case xs of
+	[] -> []
+	(x:xs) -> case f x of
+		True -> (x:filter f xs)
+		False -> filter f xs
+
+iterate f x = (f x:iterate f (f x))
+
+head xs = case xs of
+	[] -> error "head"
+	(x:xs) -> x

@@ -86,6 +86,7 @@ parseHsExp (L.HsCon c) = Con (parseHsQName c) []
 parseHsExp (L.HsLit (L.HsInt i)) = nat2con i
 parseHsExp (L.HsLit l) = Lit l
 parseHsExp (L.HsInfixApp e q e')
+ -- PROBLEM HERE e.g. input = (1:2:1) parsed as ((1:2):1), with no nil.
  | parseHsQOp q == "Cons" = Con "Cons" [parseHsExp e, parseHsExp e']
  | parseHsQOp q == "Nil" = Con "Nil" []
  | otherwise = App (App (Var $ parseHsQOp q)  (parseHsExp e)) (parseHsExp e')
@@ -109,7 +110,7 @@ parseHsExp (L.HsTuple es) = Con "Tuple" (map parseHsExp es)
 parseHsExp (L.HsList []) = Con "Nil" []
 parseHsExp (L.HsList es) = list2con $ map parseHsExp es
 parseHsExp (L.HsParen e) = parseHsExp e
-parseHsExp (L.HsExpTypeSig _ e t) = parseHsExp e --Typed (parseHsExp e) t
+parseHsExp (L.HsExpTypeSig _ e t) = Typed (parseHsExp e) t
 parseHsExp e = error $ show e
 
 parseCaseAlts = map parseCaseAlt

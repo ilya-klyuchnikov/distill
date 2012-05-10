@@ -1,6 +1,6 @@
 module Main(main) where
     
-import Prelude hiding(zipWith, sum)
+import Prelude hiding(zipWith, sum, replicate)
 
 zipWith f xs ys = case xs of
     [] -> []
@@ -18,4 +18,8 @@ root xs ys = sum (zipWith (*) xs ys)
 
 main = let n = 100000
        in print $ root ((replicate n 1)) ((replicate n 2))
+
+replicate n x = case n == 1 of
+	True -> [x]
+	False -> (x: replicate (n - 1) x)
 

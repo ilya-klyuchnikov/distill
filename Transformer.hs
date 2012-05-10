@@ -22,7 +22,6 @@ main = do
                                     let
                                         (NoExn e') = {-trace ((show (Program e fs)) ++ "\n\n") $-} transform 0 e EmptyCtx [] [] (free e) fs
                                         (e'', fs') = residualise e' (free e') [] []
-                                    putStrLn (show (Program imports dataDecls e'' fs'))
-                                    writeFile ("Benchmarks/" ++ fileName ++ "_super.hs") (show (Program imports dataDecls e'' fs'))
+                                    writeFile ("Benchmarks/super/" ++ fileName ++ ".hs") (show (Program imports dataDecls e'' fs'))
                         _ -> error $ "Unsupported transformation: " ++ tType
                 

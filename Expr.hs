@@ -72,7 +72,9 @@ instance Pretty Program where
    pretty (Program imports dataDecls main funcs) = vcat $ (punctuate (text "\n") $ (map (text . prettyPrint) imports) ++ (map (text . prettyPrint) dataDecls) ++ (map prettyFunction (("main", main):funcs)))
 
 instance Pretty Expr where
-   pretty (Var v) = text v
+   pretty (Var v)
+ 	| v `elem` [".", ":", "$", "$$", "==", "<=", ">=", "<", ">", "=<<", "+", "-", "/", "*", "!!", "/=", "%", "++"] = parens $ text v
+    | otherwise = text v
    pretty (Bound i) = text "#" <> int i
    pretty con@(Con c es) 
     | isList con = brackets $ hcat (punctuate comma (map pretty $ con2list con))
@@ -87,9 +89,9 @@ instance Pretty Expr where
    pretty (App (App (Var v) e) e')
     | v `elem` [".", ":", "$", "$$", "==", "<=", ">=", "<", ">", "=<<", "+", "-", "/", "*", "!!", "/=", "%", "++"] = parens $ hcat $ punctuate (space <> text v <> space) (map pretty [e, e'])
    pretty (App e e') = pretty e <+> (parens $ pretty e')
-   pretty (Case e b) = hang (text "case" <+> pretty e <+> text "of") 1 $ vcat $ map pretty b
+   pretty (Case e b) = parens $ hang (text "case" <+> pretty e <+> text "of") 1 $ vcat $ map pretty b
    pretty e'@(Lambda v e) = let (vs, f) = stripLambda e'
-                            in  text "\\" <> hsep (map (parens . text) vs) <+> text "->" <+> pretty f
+                            in  parens $ text "\\" <> hsep (map (parens . text) vs) <+> text "->" <+> pretty f
    pretty (Typed e t) = parens (parens (pretty e) <+> text "::" <> text (prettyPrint t))
    pretty (Unfold _ _ _) = text ""
    
