@@ -1,6 +1,15 @@
 *.hi
 *.o
-Benchmarks/*(append|append|linecount|factorial|exp3_8|rfib|charcount|treeflip|wordcount|sumsquare|primes|raytracer)
-*super
 Transformer
+*append
+*linecount
+*factorial
+*exp3_8
+*rfib
+*charcount
+*treeflip
+*wordcount
+*sumsquare
+*primes
+*raytracer
 

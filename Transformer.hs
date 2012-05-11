@@ -16,7 +16,7 @@ main = do
                     let
                         tType = head args
                         fileName = args !! 1
-                    (Program imports dataDecls e fs) <- parseFile ("Benchmarks/" ++ fileName ++ ".hs")
+                    (Program imports dataDecls e fs) <- parseFile ("Benchmarks/inputs/" ++ fileName ++ ".hs")
                     case tType of
                         "super" -> do
                                     let

@@ -69,7 +69,7 @@ instance Matchable Branch where
     match (Branch c xs t) (Branch c' xs' t') = c == c' && length xs == length xs'
   
 instance Pretty Program where
-   pretty (Program imports dataDecls main funcs) = vcat $ (punctuate (text "\n") $ (map (text . prettyPrint) imports) ++ (map (text . prettyPrint) dataDecls) ++ (map prettyFunction (("main", main):funcs)))
+   pretty (Program imports dataDecls main funcs) = vcat $ (punctuate (text "\n") $ (text ("module Main(main) where\n")):(map (text . prettyPrint) imports) ++ (map (text . prettyPrint) dataDecls) ++ (map prettyFunction (("main", main):funcs)))
 
 instance Pretty Expr where
    pretty (Var v)

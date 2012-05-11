@@ -26,7 +26,7 @@ transform n (Con c es) (CaseCtx k bs) r s fv d = case (find (\(Branch c' xs e) -
                                                     Just (Branch c' xs e) -> transform n (foldr (\e e' -> subst 0 e e') e es) k r s fv d
 transform n (App e e') k r s fv d = transform n e (AppCtx k e') r s fv d
 transform 0 (Func f) k r s fv d = let e = place (Func f) k
-                                  in  {-trace (show e)-} (case (find (\e' -> isJust (inst e' e [])) r) of
+                                  in  trace (show e) (case (find (\e' -> isJust (inst e' e [])) r) of
                                         Just e' -> let (Just s') = inst e' e []
                                                    in  if   isRenaming s'
                                                        then return (Fold f e)
