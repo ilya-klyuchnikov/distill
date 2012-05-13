@@ -4,26 +4,26 @@ module Main(main) where
 import Prelude hiding (head, tail, length)
 
  
-data Nat = Z
-         | S Nat
-         deriving Show
-
- 
 data List a = Nil
             | Cons a (List a)
             deriving Show
 
  
-data Char = Space
-          | Letter
+data Char = Letter
+          | NewLine
           deriving Show
+
+ 
+data Nat = Z
+         | S Nat
+         deriving Show
 
 main = print . f =<< getContents
 
 f = (\(getContents) -> (case getContents of
-                         [] -> 0
+                         [] -> Z
                          (y:ys) -> (case ys of
-                                     [] -> 1
+                                     [] -> S (Z)
                                      (y':ys) -> (case y of
-                                                  ' ' -> 1 + (f ((y':ys)))
+                                                  '\n' -> S (f ((y':ys)))
                                                   _ -> f ((y':ys))))))

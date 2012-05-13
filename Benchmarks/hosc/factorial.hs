@@ -2,6 +2,8 @@ module Main(main) where
 
 data Nat  = Z  | S Nat deriving Show
 
+x = (S (S (S (S (S (S (S (S Z))))))))
+
 main = print (let f = \r3 -> case  r3  of 
                                     Z  -> (S Z)
                                     S v2 -> let g = \s3 -> case  s3  of 
@@ -12,5 +14,3 @@ main = print (let f = \r3 -> case  r3  of
                                                                 Z  -> Z
                                             in g (f v2) 
               in f x)
-
-x = (S (S (S Z)))

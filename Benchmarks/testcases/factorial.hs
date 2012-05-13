@@ -16,4 +16,4 @@ fac = \n -> case n of
       Z -> S Z
       S o -> mul n (fac o)
 
-x = (S (S (S Z)))
+x = (S (S (S (S (S (S (S (S Z))))))))

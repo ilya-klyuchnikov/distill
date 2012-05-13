@@ -5,6 +5,8 @@ import Prelude hiding (flip)
 data Tree a = Leaf a | Branch (Tree a) (Tree a) deriving Show
 data Nat = Z | S Nat deriving Show
 
+x = S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S Z))))))))))))))))))))))))
+
 main = print (sumtr (flip (flip (buildTree x (Leaf (S Z))))))
 
 flip = \t -> case t of
@@ -22,5 +24,3 @@ buildTree = \n t -> case n of
 plus = \x y -> case x of
       Z -> y
       S z -> S (plus z y)
-
-x = (S (S (S (S (S (S (S Z)))))))

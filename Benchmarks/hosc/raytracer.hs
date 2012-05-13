@@ -3,7 +3,9 @@ module Main(main) where
 data List a = Nil  | Cons a (List a) deriving Show
 data Nat  = Z  | S Nat deriving Show
 
-x = (S (S (S (S (S (S Z))))))
+x = fromInt 6000000
+
+fromInt x = if x < 1 then Z else S (fromInt (x-1))
 
 main = print (case  x  of 
                     Z  -> Z

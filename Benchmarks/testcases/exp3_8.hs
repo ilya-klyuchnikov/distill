@@ -16,4 +16,4 @@ pow = \x y -> case y of
       Z -> S Z
       S z -> mul x (pow x z)
 
-x = S (S (S (S (S (S (S (S (S Z))))))))
+x = S (S (S (S (S (S (S (S (S (S Z)))))))))

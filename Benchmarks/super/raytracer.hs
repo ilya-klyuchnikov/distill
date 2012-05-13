@@ -1,13 +1,40 @@
+module Main(main) where
+
+
 import Prelude hiding (zipWith, sum, replicate)
 
-main = (print $ f'' (0) ((*)) (100000) (100000))
+ 
+data List a = Nil
+            | Cons a (List a)
+            deriving Show
 
-f'' = (\(x) (*) (x') (x'') -> (case (x' == 1) of
-                                True -> (case (x'' == 1) of
-                                          True -> ((1 * 2) + x)
-                                          False -> ((1 * 2) + x))
-                                False -> (case (x'' == 1) of
-                                           True -> (case ((x' - 1) == 1) of
-                                                     True -> ((1 * 2) + x)
-                                                     False -> ((1 * 2) + x))
-                                           False -> f'' (((1 * 2) + x)) ((*)) ((x' - 1)) ((x'' - 1)))))
+ 
+data Nat = Z
+         | S Nat
+         deriving Show
+
+main = print ((case n of
+                Z -> Z
+                S (o) -> (case o of
+                           Z -> (case n of
+                                  Z -> Z
+                                  S (o) -> (case o of
+                                             Z -> S (S (Z))
+                                             S (p) -> S (S (Z))))
+                           S (p) -> f''''' (n) (p) (Z) (Z))))
+
+f''''' = (\(n) (p) (x) (x') -> (case n of
+                                 Z -> x'
+                                 S (o) -> (case o of
+                                            Z -> (case p of
+                                                   Z -> S (S (x))
+                                                   S (p) -> S (S (x)))
+                                            S (p') -> (case p of
+                                                        Z -> (case p' of
+                                                               Z -> S (S (S (S (x))))
+                                                               S (p) -> S (S (S (S (x)))))
+                                                        S (p) -> f''''' (S (p')) (p) (S (S (x))) (S (S (x)))))))
+
+n = fromInt 6000000
+
+fromInt x = if x < 1 then Z else S (fromInt (x-1))

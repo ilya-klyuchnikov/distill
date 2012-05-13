@@ -3,6 +3,8 @@ module Main(main) where
 data Tree a = Leaf a | Branch (Tree a) (Tree a) deriving Show
 data Nat  = Z  | S Nat deriving Show
 
+x = S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S Z))))))))))))))))))))))))
+
 main = print (let f = \w18 p18 -> case  w18  of 
                                         S r11 -> ((f r11) (Branch p18 p18))
                                         Z  -> let g = \r18 -> case  r18  of 
@@ -13,5 +15,3 @@ main = print (let f = \w18 p18 -> case  w18  of
                                                                     Leaf v -> v
                                               in g p18
               in f x (Leaf (S Z)))
-
-x = (S (S (S (S (S (S (S Z)))))))

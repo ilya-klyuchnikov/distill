@@ -1,59 +1,34 @@
-import Prelude hiding (length, head, tail)
+module Main(main) where
 
-main = ((print . (\(x) -> (case ((case x of
-                                   [] -> 0
-                                   (x:xs) -> f'' (1) (xs)) == 1) of
-                            True -> 1
-                            False -> (case ((case x of
-                                              [] -> error ("head")
-                                              (x:xs) -> x) == ' ') of
-                                       True -> (1 + f''' (x))
-                                       False -> f' (x))))) =<< getContents)
 
-f''' = (\(x) -> (case ((case x of
+import Prelude hiding (head, tail, length)
+
+ 
+data Nat = Z
+         | S Nat
+         deriving Show
+
+ 
+data List a = Nil
+            | Cons a (List a)
+            deriving Show
+
+ 
+data Char = Space
+          | Letter
+          deriving Show
+
+main = print . f =<< getContents
+
+f = (\(getContents) -> (case getContents of
                          [] -> 0
-                         (x:xs) -> (case xs of
-                                     [] -> 0
-                                     (x:xs) -> f''''''' (1) (xs))) == 1) of
-                  True -> 1
-                  False -> (case ((case x of
-                                    [] -> error ("head")
-                                    (x:xs) -> (case xs of
-                                                [] -> error ("head")
-                                                (x:xs) -> x)) == ' ') of
-                             True -> (1 + f''' ((case x of
-                                                  [] -> []
-                                                  (x:xs) -> xs)))
-                             False -> f''' ((case x of
-                                              [] -> []
-                                              (x:xs) -> xs)))))
-
-f''''''' = (\(x''') (xs') -> (case xs' of
-                               [] -> x'''
-                               (x:xs) -> f''''''' ((x''' + 1)) (xs)))
-
-f' = (\(x) -> (case ((case x of
-                       [] -> 0
-                       (x:xs) -> (case xs of
-                                   [] -> 0
-                                   (x:xs) -> f''''' (1) (xs))) == 1) of
-                True -> 1
-                False -> (case ((case x of
-                                  [] -> error ("head")
-                                  (x:xs) -> (case xs of
-                                              [] -> error ("head")
-                                              (x:xs) -> x)) == ' ') of
-                           True -> (1 + f' ((case x of
-                                              [] -> []
-                                              (x:xs) -> xs)))
-                           False -> f' ((case x of
-                                          [] -> []
-                                          (x:xs) -> xs)))))
-
-f''''' = (\(x''') (xs') -> (case xs' of
-                             [] -> x'''
-                             (x:xs) -> f''''' ((x''' + 1)) (xs)))
-
-f'' = (\(x'') (xs) -> (case xs of
-                        [] -> x''
-                        (x:xs) -> f'' ((x'' + 1)) (xs)))
+                         (y:ys) -> (case ys of
+                                     [] -> 1
+                                     (y:ys) -> (case getContents of
+                                                 (y:ys) -> (case y of
+                                                             ' ' -> 1 + (f ((case getContents of
+                                                                              [] -> []
+                                                                              (y:ys) -> ys)))
+                                                             _ -> f ((case getContents of
+                                                                            [] -> []
+                                                                            (y:ys) -> ys)))))))

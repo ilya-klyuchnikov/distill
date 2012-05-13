@@ -36,4 +36,6 @@ replicate = \n x -> case n of
       Z -> Cons x Nil
       S p -> Cons x (replicate o x)
 
-n = (S (S (S (S (S (S Z))))))
+n = fromInt 6000000
+
+fromInt x = if x < 1 then Z else S (fromInt (x-1))

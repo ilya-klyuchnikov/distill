@@ -29,4 +29,6 @@ plus = \x y -> case x of
       Z -> y
       S z -> S (plus z y)
 
-x = (S (S (S Z)))
+x = fromInt 35
+
+fromInt x = if x < 1 then Z else S (fromInt (x-1))

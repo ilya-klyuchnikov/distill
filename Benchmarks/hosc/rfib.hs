@@ -5,7 +5,9 @@ import Prelude hiding (True, False)
 data Nat  = Z  | S Nat deriving Show
 data Bool  = True  | False deriving Show
 
-x = (S (S (S Z)))
+x = fromInt 35
+
+fromInt x = if x < 1 then Z else S (fromInt (x-1))
 
 main = print (case  x  of 
                     Z  -> (S Z)

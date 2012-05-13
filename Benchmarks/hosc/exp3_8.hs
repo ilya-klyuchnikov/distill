@@ -2,7 +2,7 @@ module Main(main) where
 
 data Nat  = Z  | S Nat deriving Show
 
-x = S (S (S (S (S (S (S (S (S Z))))))))
+x = S (S (S (S (S (S (S (S (S (S Z)))))))))
 
 main = let f = \z4 -> case  z4  of 
                             Z  -> (S Z)

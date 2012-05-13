@@ -12,9 +12,17 @@ data List a = Nil
             deriving Show
 
 main = print ((case xs of
-                [] -> []
-                (y:ys) -> f (ys) ([]) (y)))
+                Nil -> Nil
+                Cons y ys -> f (ys) (Nil) (y)))
 
 f = (\(ys) (x) (y) -> (case ys of
-                        [] -> (y:x)
-                        (y':ys) -> f (ys) ((y:x)) (y')))
+                        Nil -> Cons y x
+                        Cons y' ys -> f (ys) (Cons y x) (y')))
+                        
+xs = listFromInt 30000
+
+listFromInt i = Cons (S Z) (listFromInt' (i - 1))
+
+listFromInt' i
+ | i == 0 = Nil
+ | otherwise = Cons Z (listFromInt' (i - 1))

@@ -22,3 +22,7 @@ main = print ((case n of
 f = (\(p) (x) -> (case p of
                    Z -> S (S (S (S (x))))
                    S (p) -> f (p) (S (S (x)))))
+                   
+n = fromInt 6000000
+
+fromInt x = if x < 1 then Z else S (fromInt (x-1))

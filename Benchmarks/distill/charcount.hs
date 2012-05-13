@@ -11,8 +11,8 @@ data Nat = Z
          | S Nat
          deriving Show
 
-main = print (f (getContents))
+main = print . f =<< getContents
 
 f = (\(getContents) -> (case getContents of
-                         [] -> Z
-                         (y:ys) -> S (f (ys))))
+                         [] -> 0
+                         (y:ys) -> 1 + (f (ys))))

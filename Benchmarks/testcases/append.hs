@@ -13,4 +13,11 @@ app = \xs ys -> case xs of
       Nil -> ys
       Cons z zs -> Cons z (app zs ys)
 
-xs = Cons (S (S (S Z))) (Cons (S (S Z)) (Cons (S Z) (Cons Z Nil)))
+xs = listFromInt 30000
+
+listFromInt i = Cons (S Z) (listFromInt' (i - 1))
+
+listFromInt' i
+ | i == 0 = Nil
+ | otherwise = Cons Z (listFromInt' (i - 1))
+

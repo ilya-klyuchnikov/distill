@@ -15,6 +15,7 @@ isdivs = \n x -> neq (mod x n) Z
 primes = map head (iterate theFilter (iterate succ (S (S Z))));
 
 theFilter = \ns -> case ns of
+   Nil -> Nil
    Cons o os -> filter (isdivs o) os
 
 index = \i xs -> case i of
@@ -26,6 +27,7 @@ map = \f xs -> case xs of
       Cons y ys -> Cons (f y) (map f ys)
 
 head = \xs -> case xs of
+      Nil -> error "head"
       Cons y ys -> case ys of
             Nil -> y
             Cons v vs -> y

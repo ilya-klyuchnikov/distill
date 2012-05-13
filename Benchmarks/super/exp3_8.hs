@@ -1,35 +1,27 @@
+module Main(main) where
+
+
  
 data Nat = Z
          | S Nat
+         deriving Show
 
-main = (print $ (((case f''' (((9) ::  Int)) of
-                    Z -> 0
-                    S (x) -> (1 + f'''' (x)))) ::  Int))
+main = (print $ f (x))
 
-f'''' = (\(x') -> (case x' of
-                    Z -> 0
-                    S (x) -> (1 + f'''' (x))))
+x = S (S (S (S (S (S (S (S (S (S Z)))))))))
 
-f''' = (\(x) -> (case (x < 1) of
-                  True -> S (Z)
-                  False -> (case f''' ((x - 1)) of
-                             Z -> Z
-                             S (y) -> f''''''' (y))))
+f = (\(x) -> (case x of
+               Z -> S (Z)
+               S (z) -> (case f (z) of
+                          Z -> Z
+                          S (z) -> f'' (z))))
 
-f''''''' = (\(y) -> (case (case y of
-                            Z -> Z
-                            S (y) -> f''''''' (y)) of
-                      Z -> f'''''''''' (3)
-                      S (x) -> S (f'''''''' (x))))
+f'' = (\(z') -> (case (case z' of
+                        Z -> Z
+                        S (z) -> f'' (z)) of
+                  Z -> S (S (S (Z)))
+                  S (z) -> S (f''' (z))))
 
-f'''''''''' = (\(x''') -> (case (x''' < 1) of
-                            True -> Z
-                            False -> S (f'''''''''' ((x''' - 1)))))
-
-f'''''''' = (\(x''') -> (case x''' of
-                          Z -> f''''''''' (3)
-                          S (x) -> S (f'''''''' (x))))
-
-f''''''''' = (\(x'''') -> (case (x'''' < 1) of
-                            True -> Z
-                            False -> S (f''''''''' ((x'''' - 1)))))
+f''' = (\(z'') -> (case z'' of
+                    Z -> S (S (S (Z)))
+                    S (z) -> S (f''' (z))))
