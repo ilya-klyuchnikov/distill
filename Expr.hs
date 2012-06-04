@@ -77,9 +77,9 @@ instance Pretty Expr where
     | otherwise = text v
    pretty (Bound i) = text "#" <> int i
    pretty con@(Con c es) 
-    | isList con = brackets $ hcat (punctuate comma (map pretty $ con2list con))
-    | c == "Nil" = text "[]"
-    | c == "Cons" = parens $ hcat $ punctuate colon $ map pretty es
+--    | isList con = brackets $ hcat (punctuate comma (map pretty $ con2list con))
+    | c == "Nil" = text "Nil"
+    | c == "Cons" && length es == 2 = text "Cons" <+> (parens $ pretty $ es !! 0) <+> (parens $ pretty $ es !! 1) -- hcat $ punctuate colon $ map pretty es
     | isNat con = int $ con2nat con
     | otherwise = text c <+> hcat (punctuate space $ map (parens . pretty) es)
    pretty (Lit l) = text $ prettyPrint l
@@ -98,14 +98,14 @@ instance Pretty Expr where
 
 instance Pretty Branch where
    pretty (Branch c [] e) 
-    | c == "Nil" = text "[]" <+> text "->" <+> pretty e
+    | c == "Nil" = text "Nil" <+> text "->" <+> pretty e
     | otherwise = text c <+> text "->" <+> pretty e
    pretty (Branch c vs e) = let vs' = map (renamevar (free e)) vs
                                 e' = foldr (\v e -> subst 0 (Var v) e) e vs'
                             in (if c == "Nil"
                                 then (text "[]")
                                 else if c == "Cons"
-                                      then parens $ hcat $ punctuate colon $ map text vs'
+                                      then pretty (Con c (map Var vs))
                                       else text c <+> (hcat (punctuate space (map (parens . text) vs')))) <+> text "->" <+> pretty e' $$ empty
                             
 prettyFunction :: (String, Expr) -> Doc

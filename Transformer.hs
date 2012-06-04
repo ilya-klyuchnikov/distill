@@ -7,6 +7,7 @@ import Transform
 import Exception
 import Context
 import Debug.Trace
+import System.FilePath
     
 main = do
     args <- getArgs
@@ -16,12 +17,14 @@ main = do
                     let
                         tType = head args
                         fileName = args !! 1
-                    (Program imports dataDecls e fs) <- parseFile ("Benchmarks/inputs/" ++ fileName ++ ".hs")
+                        (dir, file) = splitFileName fileName
+                        inputDir = if dir == "./" then "Benchmarks/" else dir
+                    (Program imports dataDecls e fs) <- parseFile ( inputDir ++ "inputs/" ++ file ++ ".hs")
                     case tType of
                         "super" -> do
                                     let
                                         (NoExn e') = {-trace ((show (Program e fs)) ++ "\n\n") $-} transform 0 e EmptyCtx [] [] (free e) fs
                                         (e'', fs') = residualise e' (free e') [] []
-                                    writeFile ("Benchmarks/super/" ++ fileName ++ ".hs") (show (Program imports dataDecls e'' fs'))
+                                    writeFile (inputDir ++ "super/" ++ file ++ ".hs") (show (Program imports dataDecls e'' fs'))
                         _ -> error $ "Unsupported transformation: " ++ tType
                 
