@@ -1,6 +1,6 @@
 module Main(main) where
 
-import System (getArgs)
+import System.Environment (getArgs)
 import Parser
 import Expr
 import Transform
