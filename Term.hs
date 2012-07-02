@@ -114,9 +114,7 @@ renaming (Var a) (Var a') fs s = if a `elem` fst (unzip s)
 renaming (Lambda x t) (Lambda x' t') fs s = renaming t t' fs ((x,x'):s)
 renaming (Con c ts) (Con c' ts') fs s | c==c' && length ts == length ts' = foldrM (\(t,t') s -> renaming t t' fs s) s (zip ts ts')
 renaming (App t u) (App t' u') fs s = (renaming t t' fs s) >>= (renaming u u' fs)
-renaming (Func f) (Func f') fs s | f==f' = if f `elem` fst (unzip s)
-                                         then if (f,f') `elem` s then Just s else Nothing
-                                         else Just ((f,f'):s)
+renaming (Func f) (Func f') fs s | f==f' = Just s
 renaming (Case t bs) (Case t' bs') fs s | match bs bs' = (renaming t t' fs s) >>= (\s -> foldrM (\((Branch c xs t),(Branch c' xs' t')) s -> renaming t t' fs ((zip xs xs')++s)) s (zip bs bs'))
 renaming (Let x t u) (Let x' t' u') fs s = (renaming t t' fs s) >>= (\s -> renaming u u' fs ((x,x'):s))
 renaming (Letrec f t u) (Letrec f' t' u') fs s = (renaming t t' fs ((f,f'):s)) >>= (renaming u u' fs)
@@ -136,10 +134,8 @@ couple (Var x) (Var x') fs s = if x `elem` fst (unzip s)
                                  else Just ((x,x'):s)
 couple (Lambda x t) (Lambda x' t') fs s = embedding t t' fs ((x,x'):s)
 couple (Con c ts) (Con c' ts') fs s | c == c' && length ts == length ts' = foldrM (\ (t,t') s -> embedding t t' fs s) s (zip ts ts')
-couple (App t u) (App t' u') fs s = (embedding t t' fs s) >>= (embedding u u' fs)
-couple (Func f) (Func f') fs s = if f `elem` fs
-                                 then if (f,f') `elem` s then Just s else Nothing
-                                 else Just ((f,f'):s)
+couple (App t u) (App t' u') fs s = (couple t t' fs s) >>= (embedding u u' fs)
+couple (Func f) (Func f') fs s | f == f' = Just s
 couple (Case t bs) (Case t' bs') fs s | match bs bs' = (embedding t t' fs s) >>= (\s->foldrM (\ ((Branch c xs t),(Branch c' xs' t')) s -> embedding t t' fs ((zip xs xs')++s)) s (zip bs bs'))
 couple (Let x t u) (Let x' t' u') fs s = (embedding t t' fs s) >>= (\s -> embedding u u' fs ((x,x'):s))
 couple (Unfold f t) (Unfold f' t') fs s = if f `elem` fs
@@ -166,9 +162,9 @@ generalise (Lambda x t) (Lambda x' t') fs s fv bv = let (t'',s') = generalise t 
 generalise (Con c ts) (Con c' ts') fs s fv bv | c==c' && length ts == length ts' = let (ts'',s') = foldr (\(t,t') (ts,s) -> let (t'',s') = generalise t t' fs s fv bv
                                                                                                                             in (t'':ts,s')) ([],s) (zip ts ts')
                                                                                    in (Con c ts'',s')
-generalise (App t u) (App t' u') fs s fv bv = let (t'',s') = generalise t t' fs s fv bv
-                                                  (u'',s'') = generalise u u' fs s' fv bv
-                                              in (App t'' u'',s'')
+generalise (App t u) (App t' u') fs s fv bv | isJust (couple t' t [] []) = let (t'',s') = generalise t t' fs s fv bv
+                                                                               (u'',s'') = generalise u u' fs s' fv bv
+                                                                           in (App t'' u'',s'')
 generalise (Func f) (Func f') fs s fv bv | f==f' = (Func f,s)
 generalise (Case t bs) (Case t' bs') fs s fv bv | match bs bs' = let (t'',s') = generalise t t' fs s fv bv
                                                                      (bs'',s'') = foldr (\ ((Branch c xs t),(Branch c' xs' u)) (bs,s) -> let (t'',s') = generalise t u fs s fv (xs++bv)
