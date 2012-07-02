@@ -32,7 +32,7 @@ data Expr = Var String
 
 data Branch = Branch String [String] Expr
 
-data Program = Program [L.HsImportDecl] [L.HsDecl] Expr [(String,Expr)]
+data Program = Program [L.HsImportDecl] [L.HsDecl] L.HsDecl Expr [(String,Expr)]
 
 instance Show Expr where
     show = prettyShow
@@ -69,15 +69,24 @@ instance Matchable Branch where
     match (Branch c xs t) (Branch c' xs' t') = c == c' && length xs == length xs'
   
 instance Pretty Program where
-   pretty (Program imports dataDecls main funcs) = vcat $ (punctuate (text "\n") $ (text ("module Main(main) where\n")):(map (text . prettyPrint) imports) ++ (map (text . prettyPrint) dataDecls) ++ (map prettyFunction (("main", main):funcs)))
+   pretty (Program imports dataDecls main root funcs) = vcat $ (punctuate (text "\n") $ (text ("module Main(main) where\n")):(map (text . prettyPrint) imports) ++ (map (text . prettyPrint) dataDecls) ++ [text $ prettyPrint main] ++ (map prettyFunction (("root", root):funcs)))
+
+prettyCons (Con "Nil" []) = text "[]"
+prettyCons (Con "Cons" ((Con "Nil" []):[])) = text "[]"
+prettyCons (Con "Cons" (x:Con "Nil" []:[])) = brackets $ pretty x
+prettyCons (Con "Cons" (x:[])) = parens (pretty x)
+prettyCons (Con "Cons" (x:xs)) = parens (pretty x <> colon <> pretty (Con "Cons" xs))
 
 instance Pretty Expr where
    pretty (Var v)
- 	| v `elem` [".", ":", "$", "$$", "==", "<=", ">=", "<", ">", "=<<", "+", "-", "/", "*", "!!", "/=", "%", "++"] = parens $ text v
+    | v `elem` [".", ":", "$", "$$", "==", "<=", ">=", "<", ">", "=<<", "+", "-", "/", "*", "!!", "/=", "%", "++"] = parens $ text v
     | otherwise = text v
    pretty (Bound i) = text "#" <> int i
-   pretty con@(Con c es) 
---    | isList con = brackets $ hcat (punctuate comma (map pretty $ con2list con))
+   pretty (Con "Nil" []) = text "[]"
+   pretty (Con "Cons" ((Con "Nil" []):[])) = text "[]"
+   pretty (Con "Cons" (x:xs)) = parens (pretty x <> colon <> prettyCons (Con "Cons" xs))
+   pretty con@(Con c es)
+    | isList con = brackets $ hcat (punctuate comma (map pretty $ con2list con))
     | c == "Nil" = text "Nil"
     | c == "Cons" && length es == 2 = text "Cons" <+> (parens $ pretty $ es !! 0) <+> (parens $ pretty $ es !! 1) -- hcat $ punctuate colon $ map pretty es
     | isNat con = int $ con2nat con
@@ -91,14 +100,13 @@ instance Pretty Expr where
    pretty (App e e') = pretty e <+> (parens $ pretty e')
    pretty (Case e b) = parens $ hang (text "case" <+> pretty e <+> text "of") 1 $ vcat $ map pretty b
    pretty e'@(Lambda v e) = let (vs, f) = stripLambda e'
-                            in  parens $ text "\\" <> hsep (map (parens . text) vs) <+> text "->" <+> pretty f
+                            in parens $ text "\\" <> hsep (map (parens . text) vs) <+> text "->" <+> pretty f
    pretty (Typed e t) = parens (parens (pretty e) <+> text "::" <> text (prettyPrint t))
-   pretty (Unfold _ _ _) = text ""
-   
+
 
 instance Pretty Branch where
-   pretty (Branch c [] e) 
-    | c == "Nil" = text "Nil" <+> text "->" <+> pretty e
+   pretty (Branch c [] e)
+    | c == "Nil" = text "[]" <+> text "->" <+> pretty e
     | otherwise = text c <+> text "->" <+> pretty e
    pretty (Branch c vs e) = let vs' = map (renamevar (free e)) vs
                                 e' = foldr (\v e -> subst 0 (Var v) e) e vs'

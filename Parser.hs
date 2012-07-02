@@ -13,17 +13,27 @@ parseFile f = do
         m = P.parseModule contents
     case m of
         (P.ParseOk n) ->
-            let 
-                (imports, dataDecls, funcs) = parseHsModule n
+            let
+                (imports, dataDecls, main, funcs) = parseHsModule n
                 (funcNames, funcBodies) = unzip funcs
                 fixedFuncs = map (fixFuncs funcNames) funcBodies
                 funcs' = zip funcNames fixedFuncs
-            in case find (\(f, e) -> f == "main") funcs' of
-                Just (f, e) -> return $ Program imports dataDecls e (delete (f, e) funcs')
-                _ -> error "No main function found"
-        _ -> error "Problem"
+            in case find (\(f, e) -> f == "root") funcs' of
+                Just (f, e) -> return $ Program imports dataDecls main e (delete (f, e) funcs')
+                _ -> error "No root function found"
+        (P.ParseFailed src err) -> error (show src ++ "\n" ++ err)
         
-parseHsModule (L.HsModule _ _ _ imports decls) = (imports, (filterDataDecls decls), parseHsDecls decls)
+parseHsModule (L.HsModule _ _ _ imports decls) = case findMain decls of
+  Nothing -> error "No main function found"
+  Just main -> (imports, (filterDataDecls decls), main, parseHsDecls (delete main decls))
+
+findMain decls = getMain $ filterDecls decls
+
+getMain [] = Nothing
+getMain (f@(L.HsPatBind _ (L.HsPVar name) e []):xs) = case parseHsName name of
+  "main" -> Just f
+  _ -> getMain xs
+getMain (x:xs) = getMain xs
 
 parseHsDecls decls = map parseHsDecl $ filterDecls decls
 
