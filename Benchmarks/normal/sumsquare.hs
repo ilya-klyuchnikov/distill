@@ -6,7 +6,9 @@ data Nat = Z | S Nat deriving Show;
 data List a = Nil | Cons a (List a) deriving Show
 data Bool = True | False deriving Show
 
-main = print (f x)
+main = print $ root 
+
+root = (f x)
 
 f = \x -> sum (concatMap concatMapMul (enumFromTo (S Z) x))
 

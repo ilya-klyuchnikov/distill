@@ -6,7 +6,9 @@ data Nat = Z | S Nat deriving Show
 data List a = Nil | Cons a (List a) deriving Show
 data Bool = True | False deriving Show
 
-main = print $ index x (primes)
+main = print $ root
+
+root =  index x (primes)
 
 succ = \x -> S x
 

@@ -2,7 +2,9 @@ module Main(main) where
 
 data Nat = Z | S Nat deriving Show
 
-main = print $ pow (S (S (S Z))) x
+main = print $ root
+
+root = pow (S (S (S Z))) x
 
 plus = \x y -> case x of
       Z -> y

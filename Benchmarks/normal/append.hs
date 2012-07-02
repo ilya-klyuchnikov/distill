@@ -3,7 +3,9 @@ module Main(main) where
 data Nat = Z | S Nat deriving Show
 data List a = Nil | Cons a (List a) deriving Show
 
-main = print (nrev xs)
+main = root
+
+root = print (nrev xs)
 
 nrev = \xs -> case xs of 
       Nil -> Nil
