@@ -2,7 +2,11 @@ module Main(main) where
 	
 data Nat = Z | S Nat deriving Show
 
-main = print (fac x)
+main = print root
+
+root = (fac x)
+
+x = S (S (S Z))
 
 plus = \x y -> case x of
       Z -> y

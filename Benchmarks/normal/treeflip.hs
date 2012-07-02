@@ -5,7 +5,9 @@ import Prelude hiding (flip)
 data Tree a = Leaf a | Branch (Tree a) (Tree a) deriving Show
 data Nat = Z | S Nat deriving Show
 
-main = print (sumtr (flip (flip (buildTree x (Leaf (S Z))))))
+main = print $ root
+
+root = (sumtr (flip (flip (buildTree x (Leaf (S Z))))))
 
 flip = \t -> case t of
     Leaf x -> Leaf x

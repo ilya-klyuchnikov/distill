@@ -1,6 +1,6 @@
 module Parser where
 
-import Expr
+import Term
 import qualified Language.Haskell.Syntax as L
 import qualified Language.Haskell.Parser as P
 import Data.List (delete)
@@ -14,16 +14,26 @@ parseFile f = do
     case m of
         (P.ParseOk n) ->
             let 
-                (imports, dataDecls, funcs) = parseHsModule n
+                (imports, dataDecls, main, funcs) = parseHsModule n
                 (funcNames, funcBodies) = unzip funcs
                 fixedFuncs = map (fixFuncs funcNames) funcBodies
                 funcs' = zip funcNames fixedFuncs
-            in case find (\(f, e) -> f == "main") funcs' of
-                Just (f, e) -> return $ Program imports dataDecls e (delete (f, e) funcs')
-                _ -> error "No main function found"
-        _ -> error "Problem"
+            in case find (\(f, e) -> f == "root") funcs' of
+                Just (f, e) -> return $ Program imports dataDecls main e (delete (f, e) funcs')
+                _ -> error "No root function found"
+        (P.ParseFailed src err) -> error (show src ++ "\n" ++ err) 
         
-parseHsModule (L.HsModule _ _ _ imports decls) = (imports, (filterDataDecls decls), parseHsDecls decls)
+parseHsModule (L.HsModule _ _ _ imports decls) = case findMain decls of
+	Nothing -> error "No main function found"
+	Just main -> (imports, (filterDataDecls decls), main, parseHsDecls (delete main decls))
+
+findMain decls = getMain $ filterDecls decls
+
+getMain [] = Nothing
+getMain (f@(L.HsPatBind _ (L.HsPVar name) e []):xs) = case parseHsName name of
+	"main" -> Just f
+	_ -> getMain xs
+getMain (x:xs) = getMain xs
 
 parseHsDecls decls = map parseHsDecl $ filterDecls decls
 
@@ -50,6 +60,7 @@ fixFuncs names (Case e bs) = Case (fixFuncs names e) (map (\(Branch c es e) -> (
 fixFuncs names (Typed e t) = Typed (fixFuncs names e) t
 fixFuncs names e = e
 
+
 parseHsDecl (L.HsPatBind _ (L.HsPVar name) e []) =
     let
         fName = parseHsName name
@@ -60,7 +71,7 @@ parseHsDecl (L.HsFunBind [L.HsMatch _ name pats e []]) =
         args = map (\(L.HsPVar v) -> parseHsName v) pats
         fName = parseHsName name
         fBody = parseHsRhs e
-        fExpr = foldr (\v e -> Lambda v (abstract 0 v e)) fBody args
+        fExpr = foldr (\v e -> Lambda v e) fBody args
     in (fName, fExpr)
 parseHsDecl d = error $ show d
     
@@ -98,12 +109,12 @@ parseHsExp (L.HsLambda _ vs e) =
     let
         e' = parseHsExp e
         vs' = map (\(L.HsPVar v) -> parseHsName v) vs
-    in foldr (\v'' e'' -> Lambda v'' (abstract 0 v'' e'')) e' vs'
+    in foldr (\v'' e'' -> Lambda v'' e'') e' vs'
 parseHsExp (L.HsLet decls e) =
     let
         fLets = parseHsDecls decls
         fExpr = parseHsExp e
-    in foldl (\e (f', e') -> App (Lambda f' (abstract 0 f' e)) e') fExpr fLets
+    in foldl (\e (f', e') -> App (Lambda f' e) e') fExpr fLets
 parseHsExp (L.HsIf c t e) = Case (parseHsExp c) [Branch "True" [] $ parseHsExp t, Branch "False" [] $ parseHsExp e]
 parseHsExp (L.HsCase e alts) = Case (parseHsExp e) (parseCaseAlts alts)
 parseHsExp (L.HsTuple es) = Con "Tuple" (map parseHsExp es)
@@ -118,7 +129,7 @@ parseCaseAlts = map parseCaseAlt
 parseCaseAlt (L.HsAlt _ pat alt []) =
     let
         p'@(c, es) = parseCasePat pat
-        e' = foldl (flip (abstract 0)) (parseHsGuardedAlts alt) es
+        e' = (parseHsGuardedAlts alt)
     in (Branch c es e')
 
 parseHsGuardedAlts (L.HsUnGuardedAlt e) = parseHsExp e

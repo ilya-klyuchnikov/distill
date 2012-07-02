@@ -5,7 +5,9 @@ import Prelude hiding (subtract, True, False)
 data Nat = Z | S Nat deriving Show
 data Bool = True | False deriving Show
 
-main = print (nfib x)
+main = print (root x)
+
+root x = nfib x
 
 nfib = \x -> case (lessThanEq x (S Z)) of
    True -> S Z
